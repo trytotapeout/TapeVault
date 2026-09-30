@@ -111,6 +111,16 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 .modal-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
 .detail-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 12px; }
 .detail-head h2 { margin: 0; }
+.legacy-btn {
+  display: inline-flex; align-items: center; gap: 8px; font-weight: 600;
+  color: var(--accent-text); background: var(--highlight); border-color: var(--accent);
+}
+.legacy-btn:hover:not(:disabled) { border-color: var(--accent-text); background: color-mix(in srgb, var(--accent) 22%, var(--panel)); }
+.legacy-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.legacy-btn .soon {
+  font-size: 11px; font-weight: 600; padding: 0 7px; border-radius: 999px; line-height: 18px;
+  background: var(--accent); color: var(--on-accent);
+}
 
 .wallet-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .wallet-option { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 11px 14px; }

@@ -98,7 +98,11 @@
       <button type="button" id="back-btn" class="btn link">← 返回文件夹列表</button>
       <div class="detail-head">
         <h2 id="detail-title"></h2>
-        <button type="button" id="legacy-btn" class="btn small" aria-haspopup="dialog">设为遗产保险箱</button>
+        <button type="button" id="legacy-btn" class="btn legacy-btn" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v5c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6l-8-3Z"/><path d="M12 8v4l2.5 1.5"/></svg>
+          设为遗产保险箱
+          <span class="soon">开发中</span>
+        </button>
       </div>
       <dl id="detail-meta" class="meta"></dl>
       <div id="detail-body"></div>
@@ -116,7 +120,7 @@
       作者：<code id="x-handle">x.com/boostbob</code>
       <button type="button" id="copy-x" class="btn link small" aria-describedby="x-handle">复制</button>
     </p>
-    <p>TapeVault v0.3.1 · 文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</p>
+    <p>TapeVault v0.3.2 · 文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</p>
   </footer>
 
   <script type="module" src="src/app.js"></script>
