@@ -31,7 +31,10 @@
       <div class="hero">
         <h1>一枚 TapeOut NFT 电路，就是一个加密保险箱</h1>
         <p class="lead">TapeVault 把文件加密后存进 TapeOut 电路容器。全部数据都在 BNB Chain 上，没有服务器，也没有数据库。</p>
-        <button type="button" id="hero-connect" class="btn primary large">连接钱包开始使用</button>
+        <div class="hero-actions">
+          <button type="button" id="hero-connect" class="btn primary large">连接钱包开始使用</button>
+          <button type="button" id="hero-heir" class="btn large">我是继承人 / 守护人</button>
+        </div>
       </div>
 
       <ul class="features" aria-label="产品特性">
@@ -86,7 +89,10 @@
     <section id="folders-view" hidden>
       <div class="toolbar">
         <h2>我的文件夹</h2>
-        <button type="button" id="rescan-btn" class="btn">重新扫描</button>
+        <span class="row">
+          <button type="button" id="heir-open-btn" class="btn">我是继承人 / 守护人</button>
+          <button type="button" id="rescan-btn" class="btn">重新扫描</button>
+        </span>
       </div>
       <p id="status" class="status" role="status" aria-live="polite"></p>
       <ul id="folder-list" class="folder-list"></ul>
@@ -99,6 +105,11 @@
           <button type="submit" class="btn">添加</button>
         </form>
       </details>
+    </section>
+
+    <section id="heir-view" class="panel" hidden>
+      <button type="button" id="heir-back" class="btn link">← 返回</button>
+      <div id="heir-body"></div>
     </section>
 
     <section id="folder-detail" class="panel" hidden>
@@ -127,7 +138,7 @@
       作者：<code id="x-handle">x.com/boostbob</code>
       <button type="button" id="copy-x" class="btn link small" aria-describedby="x-handle">复制</button>
     </p>
-    <p>TapeVault v0.5.0 · 文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</p>
+    <p>TapeVault v0.6.0 · 文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</p>
   </footer>
 
   <script type="module" src="src/app.js"></script>

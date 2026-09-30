@@ -1,7 +1,7 @@
 // 文件夹详情：初始化、解锁、上传、列表、下载。
 // 所有写操作都是用户钱包直接调用 SiteRegistry（持有人即编辑者），每一块一笔交易，逐笔确认。
 
-import { $, el, errText, formatSize, formatTime, formatBnb } from './dom.js';
+import { $, el, errText, formatSize, formatTime, formatBnb, saveBytes } from './dom.js';
 import { BSC, VAULT_PREFIX, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from './config.js';
 import { ensureChain, signText, sendAndWait, isUserRejection } from './wallet.js';
 import * as vault from './vault.js';
@@ -359,14 +359,4 @@ async function download(btn, entry) {
   } finally {
     btn.disabled = false;
   }
-}
-
-/** 用 blob: 地址触发浏览器下载。类型一律按二进制下载，避免浏览器直接在本页渲染 HTML/SVG */
-function saveBytes(bytes, name) {
-  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
-  const a = el('a', { href: url, download: name.split('/').pop() || 'file' });
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }

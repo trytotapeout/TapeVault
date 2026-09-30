@@ -30,3 +30,13 @@ export function formatBnb(wei) {
   const v = Number(wei) / 1e18;
   return (v < 0.0001 ? v.toFixed(6) : v.toFixed(4)) + ' BNB';
 }
+
+/** 用 blob: 地址触发浏览器下载。类型一律按二进制下载，避免浏览器直接在本页渲染 HTML/SVG */
+export function saveBytes(bytes, name) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+  const a = el('a', { href: url, download: name.split('/').pop() || 'file' });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}

@@ -17,6 +17,8 @@ export const store = new Map();   // path → {bytes, contentType, sha256, updat
 export const sent = [];
 /** ecrecover 结果改写：测试私钥地址 → 模拟的持有人地址 */
 const recoverAlias = new Map();
+/** 链上时间偏移（秒），测试到期用：m.timeSkew.value = 8 * 86400 */
+export const timeSkew = { value: 0 };
 let clock = Math.floor(Date.now() / 1000);
 
 function registryCall(data) {
@@ -101,6 +103,10 @@ export function install(account, { failAtTx = -1, rejectSign = false, signerKey 
         case 'eth_call': {
           const { to, data } = params[0];
           if (lower(to) === BSC.registry) return registryCall(data);
+          // 测试到期：把链上时间往后拨 timeSkew 秒
+          if (lower(to) === BSC.multicall3 && data === SEL.getCurrentBlockTimestamp) {
+            return '0x' + word(BigInt(await real(method, params)) + BigInt(timeSkew.value));
+          }
           if (lower(to) === '0x0000000000000000000000000000000000000001') {
             const out = await real(method, params);
             const got = '0x' + out.slice(-40).toLowerCase();

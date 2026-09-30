@@ -6,8 +6,10 @@ import { createChain } from './chain.js';
 import { scanFolders, verifyFolders, loadCache, saveCache, parseFolderInput, folderLabel } from './folders.js';
 import { $, el, short, errText } from './dom.js';
 import { openFolder as openDetail, closeFolder, forgetKeys, openLegacyDialog, legacyBusy } from './detail.js';
+import { openHeir, closeHeir } from './heir.js';
 
-const state = { provider: null, account: null, chain: null, cpus: null, folders: [], busy: false };
+// wantHeir：从「我是继承人 / 守护人」进来，连上钱包后直接去继承人页面
+const state = { provider: null, account: null, chain: null, cpus: null, folders: [], busy: false, wantHeir: false };
 const setStatus = (msg, kind = '') => { const s = $('status'); s.textContent = msg; s.dataset.kind = kind; };
 
 // ---------------------------------------------------------------- 钱包
@@ -15,6 +17,7 @@ const setStatus = (msg, kind = '') => { const s = $('status'); s.textContent = m
 async function onConnectClick() {
   const wallets = await discoverWallets();
   if (!wallets.length) {
+    state.wantHeir = false;
     showIntroMessage('没有检测到浏览器钱包。请安装 MetaMask、OKX Wallet 等支持 BNB Chain 的钱包扩展后刷新页面。');
     return;
   }
@@ -23,6 +26,7 @@ async function onConnectClick() {
   list.replaceChildren(...wallets.map((w) => el('li', {},
     el('button', { type: 'button', class: 'btn wallet-option', on: { click: () => useWallet(w) } },
       safeIcon(w.icon), w.name))));
+  $('wallet-picker').returnValue = '';
   $('wallet-picker').showModal();
   list.querySelector('button')?.focus();
 }
@@ -41,7 +45,7 @@ function showIntroMessage(msg) {
 }
 
 async function useWallet(w) {
-  if ($('wallet-picker').open) $('wallet-picker').close();
+  if ($('wallet-picker').open) $('wallet-picker').close('picked');
   try {
     const account = await connect(w.provider);
     state.provider = w.provider;
@@ -52,9 +56,11 @@ async function useWallet(w) {
     w.provider.on?.('chainChanged', () => { if (state.account) loadFolders(false); });
     renderWallet();
     $('intro').hidden = true;
+    if (state.wantHeir) { state.wantHeir = false; showHeir(); return; }
     $('folders-view').hidden = false;
     await loadFolders(false);
   } catch (e) {
+    state.wantHeir = false;
     showIntroMessage('连接失败：' + errText(e));
   }
 }
@@ -75,8 +81,10 @@ function disconnect() {
   forgetKeys();   // 清掉内存里的密钥
   Object.assign(state, { provider: null, account: null, chain: null, cpus: null, folders: [] });
   $('wallet-area').replaceChildren(el('button', { type: 'button', id: 'connect-btn', class: 'btn primary', on: { click: onConnectClick } }, '连接钱包'));
+  closeHeir();
   $('folders-view').hidden = true;
   $('folder-detail').hidden = true;
+  $('heir-view').hidden = true;
   $('folder-list').replaceChildren();
   setStatus('');
   $('intro').hidden = false;
@@ -187,10 +195,32 @@ function closeDetail() {
   if (state.account) $('folders-view').hidden = false;
 }
 
+// ---------------------------------------------------------------- 继承人 / 守护人
+
+function showHeir() {
+  closeFolder();
+  $('folders-view').hidden = true;
+  $('folder-detail').hidden = true;
+  $('heir-view').hidden = false;
+  openHeir({ provider: state.provider, chain: state.chain });
+}
+
+function hideHeir() {
+  closeHeir();
+  $('heir-view').hidden = true;
+  $('folders-view').hidden = false;
+  if (!state.folders.length && !state.busy) loadFolders(false);
+}
+
 // ---------------------------------------------------------------- 启动
 
 $('connect-btn').addEventListener('click', onConnectClick);
 $('hero-connect').addEventListener('click', onConnectClick);
+$('hero-heir').addEventListener('click', () => { state.wantHeir = true; onConnectClick(); });
+$('heir-open-btn').addEventListener('click', showHeir);
+$('heir-back').addEventListener('click', hideHeir);
+// 没选钱包就关掉选择窗口（✕、Esc、点遮罩）：取消「去继承人页面」的意图，避免之后普通连接也跳过去
+$('wallet-picker').addEventListener('close', () => { if ($('wallet-picker').returnValue !== 'picked') state.wantHeir = false; });
 $('wallet-picker-close').addEventListener('click', () => $('wallet-picker').close());
 $('legacy-btn').addEventListener('click', openLegacyDialog);
 $('legacy-close').addEventListener('click', () => { if (!legacyBusy()) $('legacy-dialog').close(); });
