@@ -194,20 +194,24 @@ $('hero-connect').addEventListener('click', onConnectClick);
 $('wallet-picker-close').addEventListener('click', () => $('wallet-picker').close());
 // 点遮罩关闭（点击落在 dialog 自身而不是里面的内容上）
 $('wallet-picker').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-$('copy-donate').addEventListener('click', async () => {
-  const btn = $('copy-donate');
-  let ok = false;
-  try {
-    await navigator.clipboard.writeText($('donate-address').textContent.trim());
-    ok = true;
-  } catch {
-    // 剪贴板不可用（非安全来源等）：选中地址，让用户手动复制
-    getSelection().selectAllChildren($('donate-address'));
-  }
-  btn.textContent = ok ? '已复制' : '已选中，请手动复制';
-  $('copy-status').textContent = ok ? '钱包地址已复制' : '钱包地址已选中';
-  setTimeout(() => { btn.textContent = '复制'; }, 2000);
-});
+/** 复制按钮：把 source 元素的文本写进剪贴板；不可用时选中文本让用户手动复制 */
+function bindCopy(btnId, sourceId, what) {
+  $(btnId).addEventListener('click', async () => {
+    const btn = $(btnId);
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText($(sourceId).textContent.trim());
+      ok = true;
+    } catch {
+      getSelection().selectAllChildren($(sourceId));
+    }
+    btn.textContent = ok ? '已复制' : '已选中，请手动复制';
+    $('copy-status').textContent = ok ? what + '已复制' : what + '已选中';
+    setTimeout(() => { btn.textContent = '复制'; }, 2000);
+  });
+}
+bindCopy('copy-donate', 'donate-address', '钱包地址');
+bindCopy('copy-x', 'x-handle', 'X 地址');
 $('rescan-btn').addEventListener('click', () => loadFolders(true));
 $('add-form').addEventListener('submit', onAddSubmit);
 $('back-btn').addEventListener('click', closeDetail);
