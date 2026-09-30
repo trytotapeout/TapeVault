@@ -2,7 +2,7 @@
 // 所有写操作都是用户钱包直接调用 SiteRegistry（持有人即编辑者），每一块一笔交易，逐笔确认。
 
 import { $, el, errText, formatSize, formatTime, formatBnb } from './dom.js';
-import { BSC, VAULT_PREFIX, MAX_UPLOAD_BYTES } from './config.js';
+import { BSC, VAULT_PREFIX, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from './config.js';
 import { ensureChain, signText, sendAndWait, isUserRejection } from './wallet.js';
 import * as vault from './vault.js';
 
@@ -163,7 +163,7 @@ function renderUpload() {
   const pick = el('label', { for: 'file-input', class: 'btn primary' }, '选择文件上传');
   const zone = el('div', { class: 'drop-zone' },
     input, pick,
-    el('p', { class: 'muted small' }, `或把文件拖到这里 · 单个文件最大 ${MAX_UPLOAD_BYTES / 1024 / 1024} MB · 每 24 KB 一笔交易`));
+    el('p', { class: 'muted small' }, `或把文件拖到这里 · 单个文件最大 ${MAX_UPLOAD_LABEL} · 每 24 KB 一笔交易`));
   const confirmBox = el('div', { class: 'confirm-box', hidden: true });
 
   const onFile = async (file) => {
@@ -171,7 +171,7 @@ function renderUpload() {
     msg.dataset.kind = '';
     confirmBox.hidden = true;
     if (!isHolder()) { msg.dataset.kind = 'error'; msg.textContent = '当前钱包不是这枚电路的持有人，不能上传。'; return; }
-    if (file.size > MAX_UPLOAD_BYTES) { msg.dataset.kind = 'error'; msg.textContent = `文件太大（${formatSize(file.size)}），单个文件最大 ${MAX_UPLOAD_BYTES / 1024 / 1024} MB。`; return; }
+    if (file.size > MAX_UPLOAD_BYTES) { msg.dataset.kind = 'error'; msg.textContent = `文件太大（${formatSize(file.size)}），单个文件最大 ${MAX_UPLOAD_LABEL}。`; return; }
     if (!file.size) { msg.dataset.kind = 'error'; msg.textContent = '不能上传空文件。'; return; }
     try {
       msg.textContent = '正在本机加密…';

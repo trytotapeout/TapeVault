@@ -140,7 +140,9 @@ test('upload → list → download, with chunking and same-name versions', async
 
 test('upload limits and name normalization', async () => {
   const keys = await vault.unlock(fakeSigner('a'), CONTAINER, 56, null);
-  await assert.rejects(vault.prepareUpload(keys, CONTAINER, { name: 'a', bytes: new Uint8Array(2 * 1024 * 1024 + 1) }), /最大/);
+  await assert.rejects(vault.prepareUpload(keys, CONTAINER, { name: 'a', bytes: new Uint8Array(512 * 1024 + 1) }), /最大 512 KB/);
+  const max = await vault.prepareUpload(keys, CONTAINER, { name: 'max', bytes: new Uint8Array(512 * 1024) });
+  assert.equal(max.txs.length, 22);
   assert.equal(vault.normalizeName('café.txt'), 'café.txt');
   assert.throws(() => vault.normalizeName('  '), /不能为空/);
   await assert.rejects(vault.prepareUpload(keys, CONTAINER, { name: 'x'.repeat(700), bytes: new Uint8Array(1) }), /太长/);

@@ -66,8 +66,10 @@ export const MAX_FILE_BYTES = 350 * CHUNK_SIZE;
 export const READ_RANGE = 96000;
 // 链上文件的内容类型：密文一律标成二进制，不暴露原文件类型
 export const CIPHER_CONTENT_TYPE = 'application/octet-stream';
-// 单文件上传上限。链上允许 8.4 MB，但一个 1 MB 文件就要约 42 笔交易，先限制在 2 MB，避免误传大文件
-export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+// 单文件上传上限。链上允许 8.4 MB，但每 24 KB 就要一笔交易、用户逐笔确认。
+// TapeVault 定位是保存个人秘密信息，限制在 512 KB（加密后 22 笔交易）
+export const MAX_UPLOAD_BYTES = 512 * 1024;
+export const MAX_UPLOAD_LABEL = '512 KB';
 
 // 单次 Multicall 打包的调用数。公共节点对 eth_call 有 gas 上限，ownerOf/balanceOf 都很轻，400 个留足余量。
 export const MULTICALL_BATCH = 400;

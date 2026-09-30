@@ -7,7 +7,7 @@
 // 同名文件：链上只能新增，所以上传同名文件就是再写一个新 ID。列表按文件名分组，
 // 只显示链上更新时间最新的一个，其余作为历史版本保留。
 
-import { VAULT_PREFIX, VAULT_META, CIPHER_CONTENT_TYPE, MAX_UPLOAD_BYTES } from './config.js';
+import { VAULT_PREFIX, VAULT_META, CIPHER_CONTENT_TYPE, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from './config.js';
 import { deriveKeys, keyMessage, encryptFile, openHeader, decryptBody, randomFileId, sha256Hex, HEADER_READ, OVERHEAD } from './crypto.js';
 import { fileWriteTxs } from './chain.js';
 
@@ -115,7 +115,7 @@ export function normalizeName(name) {
 
 /** 加密并切块。返回 {fileId, path, blob, sha256, txs} */
 export async function prepareUpload(keys, container, { name, type, mtime, bytes }) {
-  if (bytes.length > MAX_UPLOAD_BYTES) throw new Error(`单个文件最大 ${MAX_UPLOAD_BYTES / 1024 / 1024} MB`);
+  if (bytes.length > MAX_UPLOAD_BYTES) throw new Error(`单个文件最大 ${MAX_UPLOAD_LABEL}`);
   const fileId = randomFileId();
   const blob = await encryptFile(keys, fileId, { name: normalizeName(name), type, mtime }, bytes);
   const sha256 = await sha256Hex(blob);
