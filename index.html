@@ -64,16 +64,12 @@
       <p class="muted small">请选择支持 BNB Chain 的钱包。连接后会请求切换到 BNB Smart Chain。</p>
     </dialog>
 
-    <dialog id="legacy-dialog" class="modal" aria-labelledby="legacy-title">
+    <dialog id="legacy-dialog" class="modal wide" aria-labelledby="legacy-title">
       <div class="modal-head">
-        <h2 id="legacy-title">遗产保险箱</h2>
+        <h2 id="legacy-title">设置遗产保险箱</h2>
         <button type="button" id="legacy-close" class="btn link" aria-label="关闭">✕</button>
       </div>
-      <p>这个功能还在开发中…</p>
-      <p class="muted small">计划：钱包长期无活动后，这个文件夹进入公示期；公示期结束后，这枚电路和它的解密密钥将交给你指定的继承人。每个文件夹的密钥相互独立，可以分别设置，互不影响。</p>
-      <div class="modal-actions">
-        <button type="button" id="legacy-ok" class="btn primary">知道了</button>
-      </div>
+      <div id="legacy-body"></div>
     </dialog>
 
     <section id="folders-view" hidden>
@@ -120,7 +116,7 @@
       作者：<code id="x-handle">x.com/boostbob</code>
       <button type="button" id="copy-x" class="btn link small" aria-describedby="x-handle">复制</button>
     </p>
-    <p>TapeVault v0.3.2 · 文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</p>
+    <p>TapeVault v0.4.0 · 文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</p>
   </footer>
 
   <script type="module" src="src/app.js"></script>

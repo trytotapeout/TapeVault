@@ -6,8 +6,9 @@ import { createChain } from './chain.js';
 import { scanFolders, verifyFolders, loadCache, saveCache, parseFolderInput, folderLabel } from './folders.js';
 import { $, el, short, errText } from './dom.js';
 import { openFolder as openDetail, closeFolder, forgetKeys } from './detail.js';
+import { openLegacy } from './legacy.js';
 
-const state = { provider: null, account: null, chain: null, cpus: null, folders: [], busy: false };
+const state = { provider: null, account: null, chain: null, cpus: null, folders: [], busy: false, current: null };
 const setStatus = (msg, kind = '') => { const s = $('status'); s.textContent = msg; s.dataset.kind = kind; };
 
 // ---------------------------------------------------------------- 钱包
@@ -175,6 +176,7 @@ async function onAddSubmit(ev) {
 // ---------------------------------------------------------------- 文件夹详情
 
 function openFolder(f) {
+  state.current = f;
   $('folders-view').hidden = true;
   $('folder-detail').hidden = false;
   $('back-btn').focus();
@@ -183,6 +185,7 @@ function openFolder(f) {
 
 function closeDetail() {
   closeFolder();
+  state.current = null;
   $('folder-detail').hidden = true;
   if (state.account) $('folders-view').hidden = false;
 }
@@ -192,14 +195,12 @@ function closeDetail() {
 $('connect-btn').addEventListener('click', onConnectClick);
 $('hero-connect').addEventListener('click', onConnectClick);
 $('wallet-picker-close').addEventListener('click', () => $('wallet-picker').close());
-// 遗产保险箱：功能开发中，先只弹出说明
-$('legacy-btn').addEventListener('click', () => { $('legacy-dialog').showModal(); $('legacy-ok').focus(); });
+// 遗产保险箱：目前只是界面预览，不加密也不上链
+$('legacy-btn').addEventListener('click', () => { if (state.current) openLegacy(state.current, state.account); });
 $('legacy-close').addEventListener('click', () => $('legacy-dialog').close());
-$('legacy-ok').addEventListener('click', () => $('legacy-dialog').close());
 // 点遮罩关闭（点击落在 dialog 自身而不是里面的内容上）
-for (const id of ['wallet-picker', 'legacy-dialog']) {
-  $(id).addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-}
+// 遗产表单内容多，不做点遮罩关闭，避免误触丢掉已填内容
+$('wallet-picker').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 /** 复制按钮：把 source 元素的文本写进剪贴板；不可用时选中文本让用户手动复制 */
 function bindCopy(btnId, sourceId, what) {
   $(btnId).addEventListener('click', async () => {
