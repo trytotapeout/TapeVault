@@ -1,12 +1,13 @@
 // 文件夹详情：初始化、解锁、上传、列表、下载。
 // 所有写操作都是用户钱包直接调用 SiteRegistry（持有人即编辑者），每一块一笔交易，逐笔确认。
 
-import { $, el, errText, formatSize, formatTime, formatBnb, saveBytes } from './dom.js';
+import { $, el, errText, formatSize, formatTime, formatDate, formatBnb, saveBytes } from './dom.js';
 import { BSC, VAULT_PREFIX, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from './config.js';
 import { ensureChain, signText, sendAndWait, isUserRejection } from './wallet.js';
 import * as vault from './vault.js';
 import { loadLegacy, legacyStatus, buildCheckin } from './legacy-store.js';
 import { openLegacy, legacyBusy } from './legacy.js';
+import { t, onLang } from './i18n.js';
 
 // 当前会话。keys 只放在内存里，关闭页面即失效；换文件夹、换账户都会清掉。
 const s = { ctx: null, folder: null, keys: null, listing: null, meta: null, entries: [], locked: 0, broken: 0, busy: false, seq: 0, legacy: null, now: 0 };
@@ -31,18 +32,35 @@ export async function openFolder(ctx, f) {
   $('legacy-btn').hidden = true;
   s.keys = keyCache.get(cacheKey()) || null;
   $('detail-title').textContent = f.label;
-  $('detail-meta').replaceChildren(
-    ...metaRow('处理器', `${f.cpuName || '—'}（编号 ${f.cpu}）`),
-    ...metaRow('电路合约', f.circuits),
-    ...metaRow('容器地址', f.container),
-    ...metaRow('容器状态', f.opened ? '已开通' : '未开通'),
-  );
+  renderMeta();
   if (!f.opened) {
-    body().replaceChildren(el('p', { class: 'notice' }, '这枚电路的容器还没开通，暂时不能存放文件。请先在 TapeOut 官网为它开通容器，之后刷新这里即可使用。'));
+    renderUnopened();
     return;
   }
   await refresh();
 }
+
+function renderMeta() {
+  const f = s.folder;
+  $('detail-meta').replaceChildren(
+    ...metaRow(t('处理器'), t('{0}（编号 {1}）', [f.cpuName || '—', f.cpu])),
+    ...metaRow(t('电路合约'), f.circuits),
+    ...metaRow(t('容器地址'), f.container),
+    ...metaRow(t('容器状态'), f.opened ? t('已开通') : t('未开通')),
+  );
+}
+
+function renderUnopened() {
+  body().replaceChildren(el('p', { class: 'notice' }, t('这枚电路的容器还没开通，暂时不能存放文件。请先在 TapeOut 官网为它开通容器，之后刷新这里即可使用。')));
+}
+
+// 切换语言：重画当前文件夹。钱包操作进行中不重画，避免丢掉进度提示；下一次刷新时自然换成新语言
+onLang(() => {
+  if (!s.folder || s.busy) return;
+  renderMeta();
+  if (!s.folder.opened) renderUnopened();
+  else if (s.listing) render();
+});
 
 export function closeFolder() {
   s.seq++;
@@ -58,7 +76,7 @@ async function refresh() {
   const seq = s.seq;
   const { chain, provider } = s.ctx;
   const c = s.folder.container;
-  body().replaceChildren(el('p', { class: 'muted' }, '读取文件夹…'));
+  body().replaceChildren(el('p', { class: 'muted' }, t('读取文件夹…')));
   try {
     await ensureChain(provider);
     const block = await chain.pinBlock();
@@ -77,14 +95,14 @@ async function refresh() {
     }
     render();
   } catch (e) {
-    if (seq === s.seq) body().replaceChildren(el('p', { class: 'notice error' }, '读取失败：' + errText(e)));
+    if (seq === s.seq) body().replaceChildren(el('p', { class: 'notice error' }, t('读取失败：') + errText(e)));
   }
 }
 
 function render() {
   const parts = [];
   if (s.listing.otherFileCount) {
-    parts.push(el('p', { class: 'muted small' }, `容器里另有 ${s.listing.otherFileCount} 个非 TapeVault 文件（例如 DeWEB 网站），TapeVault 不会读取或改动它们。`));
+    parts.push(el('p', { class: 'muted small' }, t('容器里另有 {0} 个非 TapeVault 文件（例如 DeWEB 网站），TapeVault 不会读取或改动它们。', [s.listing.otherFileCount])));
   }
   // 标题旁的「设为遗产保险箱」：已初始化、当前钱包是持有人、还没设置过时才显示
   $('legacy-btn').hidden = !(s.meta && isHolder() && !s.legacy);
@@ -106,39 +124,39 @@ function isHolder() {
 
 function renderInit() {
   const msg = el('p', { class: 'action-msg', role: 'status', 'aria-live': 'polite' });
-  const btn = el('button', { type: 'button', class: 'btn primary' }, '初始化保险箱');
+  const btn = el('button', { type: 'button', class: 'btn primary' }, t('初始化保险箱'));
   btn.addEventListener('click', () => guarded(btn, msg, async () => {
-    msg.textContent = '请在钱包里签名（共 2 次，用来生成并核对加密密钥，不花 gas）…';
+    msg.textContent = t('请在钱包里签名（共 2 次，用来生成并核对加密密钥，不花 gas）…');
     const keys = await vault.unlock(signer(), s.folder.container, BSC.chainId, null);
-    msg.textContent = '请在钱包里确认交易：写入 _tapevault/_meta.json（约 0.0001 BNB）…';
+    msg.textContent = t('请在钱包里确认交易：写入 _tapevault/_meta.json（约 0.0001 BNB）…');
     for (const tx of await vault.metaWriteTxs(s.folder.container, keys.keyCheck)) await sendAndWait(s.ctx.provider, s.ctx.account, tx);
     s.keys = keys;
     keyCache.set(cacheKey(), keys);
     await refresh();
   }));
   return el('div', { class: 'card' },
-    el('h3', {}, '这个文件夹还没有启用 TapeVault'),
+    el('h3', {}, t('这个文件夹还没有启用 TapeVault')),
     el('ul', { class: 'plain' },
-      el('li', {}, '文件在你的浏览器里加密后才上链，链上只有密文；文件名、类型、大小也都在密文里。'),
-      el('li', {}, '加密密钥由你的钱包签名生成，不保存在任何地方。换设备时连同一个钱包、再签一次即可恢复。'),
-      el('li', {}, '只有初始化时使用的钱包能解密。电路转给别人后，对方能管理这个文件夹，但解不开已有文件。'),
-      el('li', {}, '请使用普通钱包（MetaMask、OKX Wallet、硬件钱包等）。智能合约钱包、MPC 钱包的签名可能不固定，会被拒绝。')),
-    isHolder() ? btn : el('p', { class: 'notice' }, '当前钱包不是这枚电路的持有人，不能初始化。'),
+      el('li', {}, t('文件在你的浏览器里加密后才上链，链上只有密文；文件名、类型、大小也都在密文里。')),
+      el('li', {}, t('加密密钥由你的钱包签名生成，不保存在任何地方。换设备时连同一个钱包、再签一次即可恢复。')),
+      el('li', {}, t('只有初始化时使用的钱包能解密。电路转给别人后，对方能管理这个文件夹，但解不开已有文件。')),
+      el('li', {}, t('请使用普通钱包（MetaMask、OKX Wallet、硬件钱包等）。智能合约钱包、MPC 钱包的签名可能不固定，会被拒绝。'))),
+    isHolder() ? btn : el('p', { class: 'notice' }, t('当前钱包不是这枚电路的持有人，不能初始化。')),
     msg);
 }
 
 function renderLocked() {
   const msg = el('p', { class: 'action-msg', role: 'status', 'aria-live': 'polite' });
-  const btn = el('button', { type: 'button', class: 'btn primary' }, '签名解锁');
+  const btn = el('button', { type: 'button', class: 'btn primary' }, t('签名解锁'));
   btn.addEventListener('click', () => guarded(btn, msg, async () => {
-    msg.textContent = '请在钱包里签名（不花 gas）…';
+    msg.textContent = t('请在钱包里签名（不花 gas）…');
     s.keys = await vault.unlock(signer(), s.folder.container, BSC.chainId, s.meta);
     keyCache.set(cacheKey(), s.keys);
     await refresh();
   }));
   return el('div', { class: 'card' },
-    el('h3', {}, '🔒 保险箱已上锁'),
-    el('p', { class: 'muted' }, `链上共有 ${s.listing.files.length} 个加密文件。签名后在本机解开文件列表。密钥只保存在当前页面内存里，断开钱包或刷新页面后失效。`),
+    el('h3', {}, t('🔒 保险箱已上锁')),
+    el('p', { class: 'muted' }, t('链上共有 {0} 个加密文件。签名后在本机解开文件列表。密钥只保存在当前页面内存里，断开钱包或刷新页面后失效。', [s.listing.files.length])),
     btn, msg);
 }
 
@@ -155,28 +173,27 @@ export { legacyBusy };
 function renderLegacyStatus() {
   const st = s.legacy;
   const msg = el('p', { class: 'action-msg', role: 'status', 'aria-live': 'polite' });
-  const date = (t) => new Date(t * 1000).toLocaleDateString('zh-CN');
-  const btn = el('button', { type: 'button', class: 'btn primary' }, '我还在（报平安）');
+  const btn = el('button', { type: 'button', class: 'btn primary' }, t('我还在（报平安）'));
   btn.addEventListener('click', () => guarded(btn, msg, async () => {
-    if (!isHolder()) throw new Error('当前钱包不是这枚电路的持有人，不能报平安。');
-    msg.textContent = '请在钱包里签名（不花 gas）…';
+    if (!isHolder()) throw new Error(t('当前钱包不是这枚电路的持有人，不能报平安。'));
+    msg.textContent = t('请在钱包里签名（不花 gas）…');
     const rec = await buildCheckin({
       container: s.folder.container, chainId: BSC.chainId, owner: s.ctx.account, now: await s.ctx.chain.chainTime(),
       sign: (text) => signText(s.ctx.provider, s.ctx.account, text),
     });
     for (const tx of rec.txs) {
-      msg.textContent = '请在钱包里确认交易（约 0.0001 BNB）…';
+      msg.textContent = t('请在钱包里确认交易（约 0.0001 BNB）…');
       await sendAndWait(s.ctx.provider, s.ctx.account, tx);
     }
     await refresh();
   }));
   const g = st.setup.guardians.length;
-  return el('section', { class: 'card legacy-status' + (st.released ? ' due' : ''), 'aria-label': '遗产托付状态' },
-    el('h3', {}, st.released ? '⚠️ 遗产托付：已到期' : '🛡 遗产托付已设置'),
+  return el('section', { class: 'card legacy-status' + (st.released ? ' due' : ''), 'aria-label': t('遗产托付状态') },
+    el('h3', {}, st.released ? t('⚠️ 遗产托付：已到期') : t('🛡 遗产托付已设置')),
     el('p', {}, st.released
-      ? `已超过 ${st.setup.days} 天没有报平安，守护人现在可以放行。如果你还在，请立即报平安。`
-      : `距离放行还有 ${st.daysLeft} 天。上次报平安：${date(st.lastAlive)}，到期日：${date(st.releaseAt)}。`),
-    el('p', { class: 'muted small' }, `放行条件：${st.setup.days} 天未报平安 · 门限 ${st.setup.threshold} / ${g} 位守护人 · 继承人指纹 `, el('code', {}, st.setup.heir.fingerprint)),
+      ? t('已超过 {0} 天没有报平安，守护人现在可以放行。如果你还在，请立即报平安。', [st.setup.days])
+      : t('距离放行还有 {0} 天。上次报平安：{1}，到期日：{2}。', [st.daysLeft, formatDate(st.lastAlive), formatDate(st.releaseAt)])),
+    el('p', { class: 'muted small' }, t('放行条件：{0} 天未报平安 · 门限 {1} / {2} 位守护人 · 继承人指纹 ', [st.setup.days, st.setup.threshold, g]), el('code', {}, st.setup.heir.fingerprint)),
     isHolder() ? btn : null,
     msg);
 }
@@ -194,7 +211,7 @@ async function guarded(btn, msg, fn) {
   } catch (e) {
     if (seq !== s.seq) return;
     msg.dataset.kind = 'error';
-    msg.textContent = isUserRejection(e) ? '已在钱包里取消。' : errText(e);
+    msg.textContent = isUserRejection(e) ? t('已在钱包里取消。') : errText(e);
   } finally {
     s.busy = false;
     btn.disabled = false;
@@ -208,21 +225,21 @@ let pending = null;
 function renderUpload() {
   const msg = el('p', { class: 'action-msg', role: 'status', 'aria-live': 'polite' });
   const input = el('input', { type: 'file', id: 'file-input', class: 'sr-only' });
-  const pick = el('label', { for: 'file-input', class: 'btn primary' }, '选择文件上传');
+  const pick = el('label', { for: 'file-input', class: 'btn primary' }, t('选择文件上传'));
   const zone = el('div', { class: 'drop-zone' },
     input, pick,
-    el('p', { class: 'muted small' }, `或把文件拖到这里 · 单个文件最大 ${MAX_UPLOAD_LABEL} · 每 24 KB 一笔交易`));
+    el('p', { class: 'muted small' }, t('或把文件拖到这里 · 单个文件最大 {0} · 每 24 KB 一笔交易', [MAX_UPLOAD_LABEL])));
   const confirmBox = el('div', { class: 'confirm-box', hidden: true });
 
   const onFile = async (file) => {
     if (!file || s.busy) return;
     msg.dataset.kind = '';
     confirmBox.hidden = true;
-    if (!isHolder()) { msg.dataset.kind = 'error'; msg.textContent = '当前钱包不是这枚电路的持有人，不能上传。'; return; }
-    if (file.size > MAX_UPLOAD_BYTES) { msg.dataset.kind = 'error'; msg.textContent = `文件太大（${formatSize(file.size)}），单个文件最大 ${MAX_UPLOAD_LABEL}。`; return; }
-    if (!file.size) { msg.dataset.kind = 'error'; msg.textContent = '不能上传空文件。'; return; }
+    if (!isHolder()) { msg.dataset.kind = 'error'; msg.textContent = t('当前钱包不是这枚电路的持有人，不能上传。'); return; }
+    if (file.size > MAX_UPLOAD_BYTES) { msg.dataset.kind = 'error'; msg.textContent = t('文件太大（{0}），单个文件最大 {1}。', [formatSize(file.size), MAX_UPLOAD_LABEL]); return; }
+    if (!file.size) { msg.dataset.kind = 'error'; msg.textContent = t('不能上传空文件。'); return; }
     try {
-      msg.textContent = '正在本机加密…';
+      msg.textContent = t('正在本机加密…');
       const bytes = new Uint8Array(await file.arrayBuffer());
       const up = await vault.prepareUpload(s.keys, s.folder.container, { name: file.name, type: file.type, mtime: Math.floor(file.lastModified / 1000), bytes });
       const gas = vault.estimateGas(up.blob.length, up.txs.length);
@@ -240,34 +257,34 @@ function renderUpload() {
   zone.addEventListener('dragleave', () => zone.classList.remove('over'));
   zone.addEventListener('drop', (e) => { e.preventDefault(); zone.classList.remove('over'); onFile(e.dataTransfer.files[0]); });
 
-  const box = el('section', { class: 'upload', 'aria-label': '上传文件' }, zone, confirmBox, msg);
+  const box = el('section', { class: 'upload', 'aria-label': t('上传文件') }, zone, confirmBox, msg);
   if (pending && pending.container === s.folder.container) showResume(confirmBox, msg);
   return box;
 }
 
 function showConfirm(box, msg, up, costWei, replaces) {
-  const go = el('button', { type: 'button', class: 'btn primary' }, '确认上传');
-  const cancel = el('button', { type: 'button', class: 'btn' }, '取消');
+  const go = el('button', { type: 'button', class: 'btn primary' }, t('确认上传'));
+  const cancel = el('button', { type: 'button', class: 'btn' }, t('取消'));
   cancel.addEventListener('click', () => { box.hidden = true; });
   go.addEventListener('click', () => { cancel.disabled = true; runUpload(go, msg, { ...up, container: s.folder.container }); });
   box.replaceChildren(
     el('dl', { class: 'meta compact' },
-      el('dt', {}, '文件'), el('dd', {}, up.name),
-      el('dt', {}, '大小'), el('dd', {}, `${formatSize(up.size)}（加密后 ${formatSize(up.blob.length)}）`),
-      el('dt', {}, '交易'), el('dd', {}, `${up.txs.length} 笔，需要在钱包里逐笔确认`),
-      el('dt', {}, '预计费用'), el('dd', {}, `约 ${formatBnb(costWei)}（按当前 gas 价格估算）`)),
-    ...(replaces ? [el('p', { class: 'muted small' }, '已有同名文件：上传后显示新版本，旧版本保留在链上。')] : []),
+      el('dt', {}, t('文件')), el('dd', {}, up.name),
+      el('dt', {}, t('大小')), el('dd', {}, t('{0}（加密后 {1}）', [formatSize(up.size), formatSize(up.blob.length)])),
+      el('dt', {}, t('交易')), el('dd', {}, t('{0} 笔，需要在钱包里逐笔确认', [up.txs.length])),
+      el('dt', {}, t('预计费用')), el('dd', {}, t('约 {0}（按当前 gas 价格估算）', [formatBnb(costWei)]))),
+    ...(replaces ? [el('p', { class: 'muted small' }, t('已有同名文件：上传后显示新版本，旧版本保留在链上。'))] : []),
     el('div', { class: 'row' }, go, cancel));
   box.hidden = false;
 }
 
 function showResume(box, msg) {
-  const go = el('button', { type: 'button', class: 'btn primary' }, '继续上传');
-  const drop = el('button', { type: 'button', class: 'btn' }, '放弃');
+  const go = el('button', { type: 'button', class: 'btn primary' }, t('继续上传'));
+  const drop = el('button', { type: 'button', class: 'btn' }, t('放弃'));
   drop.addEventListener('click', () => { pending = null; box.hidden = true; });
   go.addEventListener('click', () => { drop.disabled = true; runUpload(go, msg, pending); });
   box.replaceChildren(
-    el('p', {}, `「${pending.name}」上传中断：已写入 ${pending.next} / ${pending.txs.length} 笔。未写完的文件不会出现在列表里。`),
+    el('p', {}, t('「{0}」上传中断：已写入 {1} / {2} 笔。未写完的文件不会出现在列表里。', [pending.name, pending.next, pending.txs.length])),
     el('div', { class: 'row' }, go, drop));
   box.hidden = false;
 }
@@ -275,7 +292,7 @@ function showResume(box, msg) {
 async function runUpload(btn, msg, up) {
   pending = up;
   await guarded(btn, msg, async () => {
-    if (!isHolder()) throw new Error('当前钱包不是这枚电路的持有人，不能上传。');
+    if (!isHolder()) throw new Error(t('当前钱包不是这枚电路的持有人，不能上传。'));
     // 以链上实际写入的块数为准：上次最后一笔可能已经上链，只是页面没等到回执
     const block = await s.ctx.chain.pinBlock();
     const info = (await s.ctx.chain.fileInfos(up.container, [up.path], block)).get(up.path);
@@ -284,7 +301,7 @@ async function runUpload(btn, msg, up) {
     window.addEventListener('beforeunload', warnUnload);
     try {
       for (let i = up.next; i < up.txs.length; i++) {
-        msg.textContent = `请在钱包里确认第 ${i + 1} / ${up.txs.length} 笔交易…`;
+        msg.textContent = t('请在钱包里确认第 {0} / {1} 笔交易…', [i + 1, up.txs.length]);
         await sendAndWait(s.ctx.provider, s.ctx.account, up.txs[i]);
         up.next = i + 1;
       }
@@ -295,7 +312,7 @@ async function runUpload(btn, msg, up) {
     await refresh();
   });
   if (pending) {
-    msg.textContent += ` 已写入 ${pending.next} / ${pending.txs.length} 笔，可以继续上传。`;
+    msg.textContent += t(' 已写入 {0} / {1} 笔，可以继续上传。', [pending.next, pending.txs.length]);
     const box = btn.closest('.upload')?.querySelector('.confirm-box');
     if (box) showResume(box, msg);
   }
@@ -310,35 +327,35 @@ function warnUnload(e) {
 function renderFiles() {
   const parts = [];
   const notes = [];
-  if (s.locked) notes.push(`${s.locked} 个文件用别的钱包加密（例如电路的上一任持有人），当前钱包解不开，未显示。`);
-  if (s.broken) notes.push(`${s.broken} 个文件格式不对或已损坏，未显示。`);
+  if (s.locked) notes.push(t('{0} 个文件用别的钱包加密（例如电路的上一任持有人），当前钱包解不开，未显示。', [s.locked]));
+  if (s.broken) notes.push(t('{0} 个文件格式不对或已损坏，未显示。', [s.broken]));
   const pendingCount = s.entries.filter((e) => e.pending).length;
-  if (pendingCount) notes.push(`${pendingCount} 个文件还没上传完整，暂时不能下载。`);
+  if (pendingCount) notes.push(t('{0} 个文件还没上传完整，暂时不能下载。', [pendingCount]));
 
   if (!s.entries.length) {
-    parts.push(el('p', { class: 'muted' }, '保险箱是空的，上传第一个文件吧。'));
+    parts.push(el('p', { class: 'muted' }, t('保险箱是空的，上传第一个文件吧。')));
   } else {
     const rows = s.entries.map((e) => {
-      const btn = el('button', { type: 'button', class: 'btn small', disabled: e.pending, 'aria-label': `下载 ${e.name}` }, e.pending ? '上传中' : '下载');
+      const btn = el('button', { type: 'button', class: 'btn small', disabled: e.pending, 'aria-label': t('下载 {0}', [e.name]) }, e.pending ? t('上传中') : t('下载'));
       btn.addEventListener('click', () => download(btn, e));
       return el('tr', {},
-        el('td', { class: 'name' }, e.name, e.versions.length ? el('span', { class: 'muted small' }, ` · ${e.versions.length + 1} 个版本`) : null),
+        el('td', { class: 'name' }, e.name, e.versions.length ? el('span', { class: 'muted small' }, t(' · {0} 个版本', [e.versions.length + 1])) : null),
         el('td', {}, formatSize(e.size)),
         el('td', {}, formatTime(e.updatedAt)),
         el('td', {}, btn));
     });
     parts.push(el('table', { class: 'files' },
-      el('caption', { class: 'sr-only' }, '保险箱文件'),
+      el('caption', { class: 'sr-only' }, t('保险箱文件')),
       el('thead', {}, el('tr', {},
-        el('th', { scope: 'col' }, '文件名'), el('th', { scope: 'col' }, '大小'),
-        el('th', { scope: 'col' }, '上链时间'), el('th', { scope: 'col' }, el('span', { class: 'sr-only' }, '操作')))),
+        el('th', { scope: 'col' }, t('文件名')), el('th', { scope: 'col' }, t('大小')),
+        el('th', { scope: 'col' }, t('上链时间')), el('th', { scope: 'col' }, el('span', { class: 'sr-only' }, t('操作'))))),
       el('tbody', {}, ...rows)));
   }
   for (const n of notes) parts.push(el('p', { class: 'muted small' }, n));
-  const again = el('button', { type: 'button', class: 'btn link' }, '刷新列表');
+  const again = el('button', { type: 'button', class: 'btn link' }, t('刷新列表'));
   again.addEventListener('click', () => { if (!s.busy) refresh(); });
   parts.push(again);
-  return el('section', { class: 'file-section', 'aria-label': '文件列表' }, ...parts);
+  return el('section', { class: 'file-section', 'aria-label': t('文件列表') }, ...parts);
 }
 
 async function download(btn, entry) {
@@ -354,7 +371,7 @@ async function download(btn, entry) {
     saveBytes(bytes, entry.name);
     btn.textContent = label;
   } catch (e) {
-    btn.textContent = '失败';
+    btn.textContent = t('失败');
     btn.title = errText(e);
   } finally {
     btn.disabled = false;

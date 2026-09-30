@@ -1,3 +1,5 @@
+import { t, locale } from './i18n.js';
+
 // 界面工具。链上读到的字符串都可能被任何人设置，一律用 textContent 渲染，不拼 HTML。
 
 export const $ = (id) => document.getElementById(id);
@@ -23,7 +25,12 @@ export function formatSize(n) {
 }
 
 export function formatTime(sec) {
-  return sec ? new Date(sec * 1000).toLocaleString('zh-CN', { hour12: false }) : '—';
+  return sec ? new Date(sec * 1000).toLocaleString(locale(), { hour12: false }) : '—';
+}
+
+/** 日期（不含时间） */
+export function formatDate(sec) {
+  return new Date(sec * 1000).toLocaleDateString(locale());
 }
 
 export function formatBnb(wei) {

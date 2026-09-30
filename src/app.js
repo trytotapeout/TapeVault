@@ -7,10 +7,13 @@ import { scanFolders, verifyFolders, loadCache, saveCache, parseFolderInput, fol
 import { $, el, short, errText } from './dom.js';
 import { openFolder as openDetail, closeFolder, forgetKeys, openLegacyDialog, legacyBusy } from './detail.js';
 import { openHeir, closeHeir } from './heir.js';
+import { t, getLang, setLang, onLang, applyStatic } from './i18n.js';
 
 // wantHeir：从「我是继承人 / 守护人」进来，连上钱包后直接去继承人页面
 const state = { provider: null, account: null, chain: null, cpus: null, folders: [], busy: false, wantHeir: false };
-const setStatus = (msg, kind = '') => { const s = $('status'); s.textContent = msg; s.dataset.kind = kind; };
+// msg 可以是函数：切换语言时重新生成，状态栏跟着换语言
+let statusMsg = null;
+const setStatus = (msg, kind = '') => { statusMsg = msg; const s = $('status'); s.textContent = typeof msg === 'function' ? msg() : msg; s.dataset.kind = kind; };
 
 // ---------------------------------------------------------------- 钱包
 
@@ -18,7 +21,7 @@ async function onConnectClick() {
   const wallets = await discoverWallets();
   if (!wallets.length) {
     state.wantHeir = false;
-    showIntroMessage('没有检测到浏览器钱包。请安装 MetaMask、OKX Wallet 等支持 BNB Chain 的钱包扩展后刷新页面。');
+    showIntroMessage(t('没有检测到浏览器钱包。请安装 MetaMask、OKX Wallet 等支持 BNB Chain 的钱包扩展后刷新页面。'));
     return;
   }
   if (wallets.length === 1) return useWallet(wallets[0]);
@@ -61,7 +64,7 @@ async function useWallet(w) {
     await loadFolders(false);
   } catch (e) {
     state.wantHeir = false;
-    showIntroMessage('连接失败：' + errText(e));
+    showIntroMessage(t('连接失败：') + errText(e));
   }
 }
 
@@ -80,7 +83,7 @@ function disconnect() {
   closeFolder();
   forgetKeys();   // 清掉内存里的密钥
   Object.assign(state, { provider: null, account: null, chain: null, cpus: null, folders: [] });
-  $('wallet-area').replaceChildren(el('button', { type: 'button', id: 'connect-btn', class: 'btn primary', on: { click: onConnectClick } }, '连接钱包'));
+  $('wallet-area').replaceChildren(el('button', { type: 'button', id: 'connect-btn', class: 'btn primary', on: { click: onConnectClick } }, t('连接钱包')));
   closeHeir();
   $('folders-view').hidden = true;
   $('folder-detail').hidden = true;
@@ -92,8 +95,8 @@ function disconnect() {
 
 function renderWallet() {
   $('wallet-area').replaceChildren(
-    el('span', { class: 'chip', title: state.account }, el('span', { class: 'dot', 'aria-hidden': 'true' }), BSC.name + ' · ' + short(state.account)),
-    el('button', { type: 'button', class: 'btn link', on: { click: disconnect } }, '断开'),
+    el('span', { class: 'chip', title: state.account }, el('span', { class: 'dot', 'aria-hidden': 'true' }), el('span', { class: 'chip-net' }, BSC.name + ' · '), short(state.account)),
+    el('button', { type: 'button', class: 'btn link', on: { click: disconnect } }, t('断开')),
   );
 }
 
@@ -109,7 +112,7 @@ async function loadFolders(full) {
     await ensureChain(state.provider);
     const block = await state.chain.pinBlock();
     if (!state.cpus) {
-      setStatus('读取处理器列表…');
+      setStatus(t('读取处理器列表…'));
       state.cpus = await state.chain.cpuList(block);
     }
     const cached = loadCache(localStorage, account);
@@ -122,17 +125,17 @@ async function loadFolders(full) {
       // 手动添加过的也保留，重新核对后再决定去留
       candidates = [...scan.found, ...cached];
     }
-    setStatus('核对持有状态…');
+    setStatus(t('核对持有状态…'));
     const folders = await verifyFolders(state.chain, account, candidates, state.cpus, block);
     if (account !== state.account) return;   // 扫描期间切换了账户
     state.folders = folders;
     saveCache(localStorage, account, folders);
     renderFolders();
-    const tail = skipped.length ? `；另有 ${skipped.map((s) => `处理器 ${s.cpu}`).join('、')} 编号过多未自动扫描，可在下方手动添加` : '';
+    const tail = () => skipped.length ? t('；另有 {0} 编号过多未自动扫描，可在下方手动添加', [skipped.map((s) => t('处理器 {0}', [s.cpu])).join(t('、'))]) : '';
     if (skipped.length) $('add-panel').open = true;
-    setStatus(folders.length ? `共 ${folders.length} 个文件夹${tail}` : `这个钱包在 BNB Chain 上没有 TapeOut 电路${tail}`, skipped.length ? 'warn' : '');
+    setStatus(() => (folders.length ? t('共 {0} 个文件夹{1}', [folders.length, tail()]) : t('这个钱包在 BNB Chain 上没有 TapeOut 电路{0}', [tail()])), skipped.length ? 'warn' : '');
   } catch (e) {
-    setStatus('读取失败：' + errText(e), 'error');
+    setStatus(t('读取失败：') + errText(e), 'error');
   } finally {
     state.busy = false;
     $('rescan-btn').disabled = false;
@@ -140,20 +143,20 @@ async function loadFolders(full) {
 }
 
 function renderProgress(p) {
-  if (p.stage === 'cpus') setStatus('读取处理器列表…');
-  else if (p.stage === 'balances') setStatus(`在 ${p.total} 台处理器上查找你的电路…`);
-  else if (p.stage === 'ids') setStatus(`处理器 ${p.cpu}：已扫描 ${p.done} / ${p.total} 个编号…`);
+  if (p.stage === 'cpus') setStatus(t('读取处理器列表…'));
+  else if (p.stage === 'balances') setStatus(t('在 {0} 台处理器上查找你的电路…', [p.total]));
+  else if (p.stage === 'ids') setStatus(t('处理器 {0}：已扫描 {1} / {2} 个编号…', [p.cpu, p.done, p.total]));
 }
 
 function renderFolders() {
   const list = $('folder-list');
   if (!state.folders.length) { list.replaceChildren(); return; }
   list.replaceChildren(...state.folders.map((f) => el('li', {},
-    el('button', { type: 'button', class: 'folder-card', on: { click: () => openFolder(f) }, 'aria-label': `打开文件夹 ${f.label}` },
+    el('button', { type: 'button', class: 'folder-card', on: { click: () => openFolder(f) }, 'aria-label': t('打开文件夹 {0}', [f.label]) },
       el('span', { class: 'folder-icon', 'aria-hidden': 'true' }, f.opened ? '🗂' : '📁'),
       el('span', { class: 'folder-name' }, f.label),
-      el('span', { class: 'folder-cpu' }, f.cpuName || `处理器 ${f.cpu}`),
-      el('span', { class: 'badge ' + (f.opened ? 'ok' : 'off') }, f.opened ? '容器已开通' : '容器未开通'),
+      el('span', { class: 'folder-cpu' }, f.cpuName || t('处理器 {0}', [f.cpu])),
+      el('span', { class: 'badge ' + (f.opened ? 'ok' : 'off') }, f.opened ? t('容器已开通') : t('容器未开通')),
     ))));
 }
 
@@ -161,22 +164,22 @@ async function onAddSubmit(ev) {
   ev.preventDefault();
   const input = $('add-input');
   const parsed = parseFolderInput(input.value);
-  if (!parsed) { setStatus('格式不对，请输入 <#ID>.<处理器编号>，例如 4246.0', 'error'); return; }
-  if (!state.cpus || parsed.cpu >= state.cpus.length) { setStatus(`处理器 ${parsed.cpu} 不存在`, 'error'); return; }
+  if (!parsed) { setStatus(t('格式不对，请输入 <#ID>.<处理器编号>，例如 4246.0'), 'error'); return; }
+  if (!state.cpus || parsed.cpu >= state.cpus.length) { setStatus(t('处理器 {0} 不存在', [parsed.cpu]), 'error'); return; }
   try {
     await ensureChain(state.provider);
     const block = await state.chain.pinBlock();
     const [f] = await verifyFolders(state.chain, state.account, [parsed], state.cpus, block);
-    if (!f) { setStatus(`${folderLabel(parsed.tokenId, parsed.cpu)} 不属于当前钱包`, 'error'); return; }
+    if (!f) { setStatus(t('{0} 不属于当前钱包', [folderLabel(parsed.tokenId, parsed.cpu)]), 'error'); return; }
     if (!state.folders.some((x) => x.label === f.label)) {
       state.folders = [...state.folders, f].sort((a, b) => a.cpu - b.cpu || a.tokenId - b.tokenId);
       saveCache(localStorage, state.account, state.folders);
       renderFolders();
     }
     input.value = '';
-    setStatus(`已添加 ${f.label}`);
+    setStatus(() => t('已添加 {0}', [f.label]));
   } catch (e) {
-    setStatus('添加失败：' + errText(e), 'error');
+    setStatus(t('添加失败：') + errText(e), 'error');
   }
 }
 
@@ -214,6 +217,18 @@ function hideHeir() {
 
 // ---------------------------------------------------------------- 启动
 
+applyStatic();
+$('lang-toggle').addEventListener('click', () => setLang(getLang() === 'en' ? 'zh' : 'en'));
+onLang(() => {
+  // 未连接时顶栏是「连接钱包」按钮（静态文案已由 applyStatic 处理）；连接后重画钱包信息
+  if (state.account) renderWallet();
+  else if ($('connect-btn')) $('connect-btn').textContent = t('连接钱包');
+  if (state.folders.length) renderFolders();
+  if (typeof statusMsg === 'function') $('status').textContent = statusMsg();
+  const introErr = document.querySelector('#intro .intro-error');
+  if (introErr) introErr.remove();
+});
+
 $('connect-btn').addEventListener('click', onConnectClick);
 $('hero-connect').addEventListener('click', onConnectClick);
 $('hero-heir').addEventListener('click', () => { state.wantHeir = true; onConnectClick(); });
@@ -240,13 +255,13 @@ function bindCopy(btnId, sourceId, what) {
     } catch {
       getSelection().selectAllChildren($(sourceId));
     }
-    btn.textContent = ok ? '已复制' : '已选中，请手动复制';
-    $('copy-status').textContent = ok ? what + '已复制' : what + '已选中';
-    setTimeout(() => { btn.textContent = '复制'; }, 2000);
+    btn.textContent = ok ? t('已复制') : t('已选中，请手动复制');
+    $('copy-status').textContent = ok ? t('{0}已复制', [what()]) : t('{0}已选中', [what()]);
+    setTimeout(() => { btn.textContent = t('复制'); }, 2000);
   });
 }
-bindCopy('copy-donate', 'donate-address', '钱包地址');
-bindCopy('copy-x', 'x-handle', 'X 地址');
+bindCopy('copy-donate', 'donate-address', () => t('钱包地址'));
+bindCopy('copy-x', 'x-handle', () => t('X 地址'));
 $('rescan-btn').addEventListener('click', () => loadFolders(true));
 $('add-form').addEventListener('submit', onAddSubmit);
 $('back-btn').addEventListener('click', closeDetail);

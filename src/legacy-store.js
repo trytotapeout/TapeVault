@@ -17,6 +17,7 @@ import { VAULT_PREFIX } from './config.js';
 import { sha256Hex, keysFromSecret } from './crypto.js';
 import { fileWriteTxs } from './chain.js';
 import * as S from './seal.js';
+import { t } from './i18n.js';
 
 export const LEGACY_DIR = VAULT_PREFIX + 'legacy/';
 export const MIN_DAYS = 7;
@@ -63,10 +64,10 @@ export async function signText(kind, body) {
  * 返回 {path, body, bytes, txs}。secret 不会被清零，调用方用完自己清。
  */
 export async function buildSetup(p) {
-  if (!Number.isInteger(p.days) || p.days < MIN_DAYS) throw new Error(`放行天数至少 ${MIN_DAYS} 天`);
+  if (!Number.isInteger(p.days) || p.days < MIN_DAYS) throw new Error(t('放行天数至少 {0} 天', [MIN_DAYS]));
   const n = p.guardians.length;
-  if (n < 1 || n > MAX_GUARDIANS) throw new Error(`守护人 1–${MAX_GUARDIANS} 位`);
-  if (!Number.isInteger(p.threshold) || p.threshold < 1 || p.threshold > n) throw new Error('门限不对');
+  if (n < 1 || n > MAX_GUARDIANS) throw new Error(t('守护人 1–{0} 位', [MAX_GUARDIANS]));
+  if (!Number.isInteger(p.threshold) || p.threshold < 1 || p.threshold > n) throw new Error(t('门限不对'));
   const c = lower(p.container);
 
   const heirKey = await S.importSpki(p.heir.spki);
@@ -118,7 +119,7 @@ async function finish(kind, body, p) {
 
 function parseRecord(bytes) {
   const r = JSON.parse(dec.decode(bytes));
-  if (r.app !== 'tapevault' || r.v !== 1 || typeof r.sig !== 'string') throw new Error('不是 TapeVault 遗产记录');
+  if (r.app !== 'tapevault' || r.v !== 1 || typeof r.sig !== 'string') throw new Error(t('不是 TapeVault 遗产记录'));
   const { sig, ...body } = r;
   return { body, sig };
 }
@@ -177,7 +178,7 @@ export function legacyStatus(records, owner, now) {
 /** 守护人：用私钥找出自己是第几位，解开碎片，改用继承人公钥加密。返回可交给继承人的字符串 */
 export async function guardianRelease(setup, guardianPriv) {
   const i = setup.guardians.findIndex((g) => g.fingerprint === guardianPriv.fingerprint);
-  if (i < 0) throw new Error('这把私钥不是这份托付里的任何一位守护人');
+  if (i < 0) throw new Error(t('这把私钥不是这份托付里的任何一位守护人'));
   const plain = await S.unseal(guardianPriv.key, S.unb64(setup.shares[i]), guardianInfo(i + 1, setup.container));
   const heirKey = await S.importSpki(S.unb64(setup.heir.spki));
   const out = await S.seal(heirKey, plain, releaseInfo(i + 1, setup.container));
@@ -188,7 +189,7 @@ export async function guardianRelease(setup, guardianPriv) {
 /** 解析守护人交来的碎片字符串 */
 export function parseShare(text) {
   const m = String(text || '').trim().match(/^tvs1:(\d{1,3}):([A-Za-z0-9+/=_-]+)$/);
-  if (!m) throw new Error('碎片格式不对，应以 tvs1: 开头');
+  if (!m) throw new Error(t('碎片格式不对，应以 tvs1: 开头'));
   return { index: Number(m[1]), data: S.unb64(m[2]) };
 }
 
@@ -196,20 +197,20 @@ export function parseShare(text) {
  * 继承人：用私钥和至少 threshold 份碎片解开文件夹。返回 {aes, keyCheck}（与持有人签名解锁得到的相同）。
  */
 export async function heirOpen(setup, heirPriv, shareTexts) {
-  if (heirPriv.fingerprint !== setup.heir.fingerprint) throw new Error('私钥与这份托付的继承人公钥指纹不符');
+  if (heirPriv.fingerprint !== setup.heir.fingerprint) throw new Error(t('私钥与这份托付的继承人公钥指纹不符'));
   const seen = new Set();
   const parts = [];
-  for (const t of shareTexts) {
-    const s = parseShare(t);
-    if (s.index < 1 || s.index > setup.guardians.length) throw new Error(`碎片编号 ${s.index} 不存在`);
+  for (const text of shareTexts) {
+    const s = parseShare(text);
+    if (s.index < 1 || s.index > setup.guardians.length) throw new Error(t('碎片编号 {0} 不存在', [s.index]));
     if (seen.has(s.index)) continue;
     seen.add(s.index);
     const plain = await S.unseal(heirPriv.key, s.data, releaseInfo(s.index, setup.container))
-      .catch(() => { throw new Error(`碎片 ${s.index} 解不开：不属于这个文件夹，或不是交给你的`); });
-    if (plain.length !== 33 || plain[0] !== s.index) throw new Error(`碎片 ${s.index} 内容不对`);
+      .catch(() => { throw new Error(t('碎片 {0} 解不开：不属于这个文件夹，或不是交给你的', [s.index])); });
+    if (plain.length !== 33 || plain[0] !== s.index) throw new Error(t('碎片 {0} 内容不对', [s.index]));
     parts.push({ x: plain[0], y: plain.subarray(1) });
   }
-  if (parts.length < setup.threshold) throw new Error(`碎片不够：需要 ${setup.threshold} 份，还差 ${setup.threshold - parts.length} 份`);
+  if (parts.length < setup.threshold) throw new Error(t('碎片不够：需要 {0} 份，还差 {1} 份', [setup.threshold, setup.threshold - parts.length]));
   const K = S.combine(parts.slice(0, setup.threshold));
   const kKey = await subtle().importKey('raw', K, 'AES-GCM', false, ['decrypt']);
   K.fill(0);
@@ -218,12 +219,12 @@ export async function heirOpen(setup, heirPriv, shareTexts) {
   try {
     inner = new Uint8Array(await subtle().decrypt({ name: 'AES-GCM', iv: raw.subarray(0, 12), additionalData: outerAad(setup.container) }, kKey, raw.subarray(12)));
   } catch {
-    throw new Error('碎片组合不对，解不开外锁');
+    throw new Error(t('碎片组合不对，解不开外锁'));
   }
   const secret = await S.unseal(heirPriv.key, inner, heirInfo(setup.container));
   try {
     const keys = await keysFromSecret(secret);
-    if (keys.keyCheck !== setup.keyCheck) throw new Error('解出的密钥核对失败');
+    if (keys.keyCheck !== setup.keyCheck) throw new Error(t('解出的密钥核对失败'));
     return keys;
   } finally {
     secret.fill(0);

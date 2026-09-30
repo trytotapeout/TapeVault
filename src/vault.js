@@ -10,6 +10,7 @@
 import { VAULT_PREFIX, VAULT_META, CIPHER_CONTENT_TYPE, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from './config.js';
 import { deriveKeys, keyMessage, encryptFile, openHeader, decryptBody, randomFileId, sha256Hex, HEADER_READ, OVERHEAD } from './crypto.js';
 import { fileWriteTxs } from './chain.js';
+import { t } from './i18n.js';
 
 export const FILE_DIR = VAULT_PREFIX + 'f/';
 const FILE_ID = /^[0-9a-f]{32}$/;
@@ -25,7 +26,7 @@ export function buildMeta(keyCheck) {
 
 export function parseMeta(bytes) {
   const m = JSON.parse(new TextDecoder().decode(bytes));
-  if (m.app !== 'tapevault' || m.v !== 1 || !/^[0-9a-f]{32}$/.test(m.keyCheck)) throw new Error('_meta.json 格式不认识');
+  if (m.app !== 'tapevault' || m.v !== 1 || !/^[0-9a-f]{32}$/.test(m.keyCheck)) throw new Error(t('_meta.json 格式不认识'));
   return m;
 }
 
@@ -52,11 +53,11 @@ export async function unlock(sign, container, chainId, meta) {
   const msg = keyMessage(container, chainId);
   const keys = await deriveKeys(await sign(msg), container);
   if (meta) {
-    if (keys.keyCheck !== meta.keyCheck) throw new Error('密钥核对失败：这个文件夹是用另一个钱包初始化的，当前钱包解不开里面的文件');
+    if (keys.keyCheck !== meta.keyCheck) throw new Error(t('密钥核对失败：这个文件夹是用另一个钱包初始化的，当前钱包解不开里面的文件'));
     return keys;
   }
   const again = await deriveKeys(await sign(msg), container);
-  if (again.keyCheck !== keys.keyCheck) throw new Error('两次签名结果不同：当前钱包（可能是智能合约钱包或 MPC 钱包）签名不确定，无法用来加密');
+  if (again.keyCheck !== keys.keyCheck) throw new Error(t('两次签名结果不同：当前钱包（可能是智能合约钱包或 MPC 钱包）签名不确定，无法用来加密'));
   return keys;
 }
 
@@ -108,14 +109,14 @@ export async function decodeListing(chain, keys, container, listing, block) {
 
 export function normalizeName(name) {
   const n = String(name || '').normalize('NFC').trim();
-  if (!n) throw new Error('文件名不能为空');
-  if (/[\0-\x1f\x7f]/.test(n)) throw new Error('文件名含控制字符');
+  if (!n) throw new Error(t('文件名不能为空'));
+  if (/[\0-\x1f\x7f]/.test(n)) throw new Error(t('文件名含控制字符'));
   return n;
 }
 
 /** 加密并切块。返回 {fileId, path, blob, sha256, txs} */
 export async function prepareUpload(keys, container, { name, type, mtime, bytes }) {
-  if (bytes.length > MAX_UPLOAD_BYTES) throw new Error(`单个文件最大 ${MAX_UPLOAD_LABEL}`);
+  if (bytes.length > MAX_UPLOAD_BYTES) throw new Error(t('单个文件最大 {0}', [MAX_UPLOAD_LABEL]));
   const fileId = randomFileId();
   const blob = await encryptFile(keys, fileId, { name: normalizeName(name), type, mtime }, bytes);
   const sha256 = await sha256Hex(blob);

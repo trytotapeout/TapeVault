@@ -6,6 +6,7 @@ import { encodeCall, decodeResult, decodeAggregate3, hexToBytes } from './abi.js
 import { BSC, SEL, MULTICALL_BATCH, PATHS_PAGE, VAULT_PREFIX, VAULT_META, CHUNK_SIZE, MAX_FILE_BYTES, READ_RANGE } from './config.js';
 import { sha256Hex } from './crypto.js';
 import { keccak256 } from './keccak.js';
+import { t } from './i18n.js';
 
 const lower = (a) => String(a).toLowerCase();
 
@@ -193,22 +194,22 @@ export function createChain(rpc, net = BSC) {
 
   /** 读取整个文件并核对长度与 SHA-256（SPEC §5 第 4 条）。onProgress(done, total) */
   async function readVerified(container, path, info, block, onProgress) {
-    if (info.size > MAX_FILE_BYTES) throw new Error('文件超过 8.4 MB，拒绝读取');
+    if (info.size > MAX_FILE_BYTES) throw new Error(t('文件超过 8.4 MB，拒绝读取'));
     const out = new Uint8Array(info.size);
     for (let off = 0; off < info.size; off += READ_RANGE) {
       const part = await readRange(container, path, off, READ_RANGE, block);
-      if (!part.length || off + part.length > info.size) throw new Error('读取长度异常');
+      if (!part.length || off + part.length > info.size) throw new Error(t('读取长度异常'));
       out.set(part, off);
       onProgress?.(off + part.length, info.size);
     }
-    if ((await sha256Hex(out)) !== info.sha256) throw new Error('SHA-256 校验失败：文件可能还在上传中，或已损坏');
+    if ((await sha256Hex(out)) !== info.sha256) throw new Error(t('SHA-256 校验失败：文件可能还在上传中，或已损坏'));
     return out;
   }
 
   /** 链上时间（秒）：Multicall3.getCurrentBlockTimestamp()，倒计时一律用它，不用本机时钟 */
   async function chainTime(block = 'latest') {
-    const [t] = await view(net.multicall3, SEL.getCurrentBlockTimestamp, ['uint'], block);
-    return Number(t);
+    const [ts] = await view(net.multicall3, SEL.getCurrentBlockTimestamp, ['uint'], block);
+    return Number(ts);
   }
 
   /**
@@ -238,8 +239,8 @@ export function createChain(rpc, net = BSC) {
 
 /** 把一个文件切成 SiteRegistry 的写入交易：第 1 笔 putFile，其余 appendChunk。返回 [{to, data}] */
 export function fileWriteTxs(container, path, contentType, sha256, bytes, net = BSC) {
-  if (!bytes.length) throw new Error('空文件');
-  if (bytes.length > MAX_FILE_BYTES) throw new Error('文件超过链上上限 8.4 MB');
+  if (!bytes.length) throw new Error(t('空文件'));
+  if (bytes.length > MAX_FILE_BYTES) throw new Error(t('文件超过链上上限 8.4 MB'));
   const txs = [{
     to: net.registry,
     data: encodeCall(SEL.putFile, ['address', 'string', 'string', 'bytes32', 'bytes'],

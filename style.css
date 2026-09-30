@@ -66,6 +66,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .logo { color: var(--accent-text); }
 .wallet { display: flex; align-items: center; gap: 8px; }
 .topbar-right { display: flex; align-items: center; gap: 8px; }
+.topbar-right > .btn { flex-shrink: 0; }
+:root[data-i18n-pending] body { visibility: hidden; }
+.btn.lang-toggle { min-width: 36px; height: 36px; padding: 0 8px; font-size: 13px; font-weight: 600; }
 .btn.theme-toggle { width: 36px; height: 36px; padding: 0; display: inline-grid; place-items: center; }
 .theme-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .theme-toggle .icon-sun, :root[data-theme="light"] .theme-toggle .icon-moon { display: none; }
@@ -94,7 +97,7 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 
 .chip {
   display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
-  border: 1px solid var(--line); border-radius: 999px; font-size: 13px;
+  border: 1px solid var(--line); border-radius: 999px; font-size: 13px; white-space: nowrap;
 }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
 
@@ -281,4 +284,8 @@ label.btn { display: inline-block; }
 @media (max-width: 600px) {
   .topbar, main { padding-left: 14px; padding-right: 14px; }
   .add-form input { width: 140px; }
+  .chip-net { display: none; }
+  .topbar { flex-wrap: wrap; row-gap: 10px; }
+  .topbar-right { margin-left: auto; }
+  .wallet { flex-wrap: nowrap; }
 }
