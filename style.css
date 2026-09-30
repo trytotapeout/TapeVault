@@ -108,6 +108,9 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .modal-head h2 { margin: 0; }
 .modal p { margin: 14px 0 0; }
+.modal-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
+.detail-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 12px; }
+.detail-head h2 { margin: 0; }
 
 .wallet-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .wallet-option { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 11px 14px; }

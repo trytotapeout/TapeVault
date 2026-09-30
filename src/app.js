@@ -192,8 +192,14 @@ function closeDetail() {
 $('connect-btn').addEventListener('click', onConnectClick);
 $('hero-connect').addEventListener('click', onConnectClick);
 $('wallet-picker-close').addEventListener('click', () => $('wallet-picker').close());
+// 遗产保险箱：功能开发中，先只弹出说明
+$('legacy-btn').addEventListener('click', () => { $('legacy-dialog').showModal(); $('legacy-ok').focus(); });
+$('legacy-close').addEventListener('click', () => $('legacy-dialog').close());
+$('legacy-ok').addEventListener('click', () => $('legacy-dialog').close());
 // 点遮罩关闭（点击落在 dialog 自身而不是里面的内容上）
-$('wallet-picker').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+for (const id of ['wallet-picker', 'legacy-dialog']) {
+  $(id).addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+}
 /** 复制按钮：把 source 元素的文本写进剪贴板；不可用时选中文本让用户手动复制 */
 function bindCopy(btnId, sourceId, what) {
   $(btnId).addEventListener('click', async () => {
