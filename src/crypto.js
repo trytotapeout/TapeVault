@@ -48,20 +48,33 @@ export function keyMessage(container, chainId) {
   ].join('\n');
 }
 
-/** 由签名派生密钥：返回 {aes: CryptoKey, keyCheck: hex} */
-export async function deriveKeys(signatureHex, container) {
+/**
+ * 由签名得到文件夹的 64 字节密钥材料（HKDF 输出）：前 32 字节是主密钥，后 32 字节只用来算 keyCheck。
+ * 遗产托付交给继承人的就是这 64 字节，继承人用 keysFromSecret 还原出和持有人完全相同的密钥。
+ */
+export async function deriveSecret(signatureHex, container) {
   const sig = unhex(signatureHex);
   if (sig.length !== 65) throw new Error('签名长度不对，当前钱包可能不是普通 EOA 钱包');
   // 只用 r‖s：不同钱包对 v 的写法不同（0/1 或 27/28），不能让它影响密钥
   const ikm = await subtle().importKey('raw', sig.subarray(0, 64), 'HKDF', false, ['deriveBits']);
-  const bits = new Uint8Array(await subtle().deriveBits(
+  return new Uint8Array(await subtle().deriveBits(
     { name: 'HKDF', hash: 'SHA-256', salt: enc.encode('tapevault/v1'), info: enc.encode('container:' + String(container).toLowerCase()) },
     ikm, 512));
-  const aes = await subtle().importKey('raw', bits.subarray(0, 32), 'AES-GCM', false, ['encrypt', 'decrypt']);
-  const mac = await subtle().importKey('raw', bits.subarray(32, 64), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  bits.fill(0);
+}
+
+/** 由 64 字节密钥材料得到 {aes: CryptoKey, keyCheck: hex}。不会清零传入的 secret */
+export async function keysFromSecret(secret) {
+  if (!(secret instanceof Uint8Array) || secret.length !== 64) throw new Error('密钥材料长度不对');
+  const aes = await subtle().importKey('raw', secret.subarray(0, 32), 'AES-GCM', false, ['encrypt', 'decrypt']);
+  const mac = await subtle().importKey('raw', secret.subarray(32, 64), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const check = new Uint8Array(await subtle().sign('HMAC', mac, enc.encode('tapevault/keycheck/v1')));
   return { aes, keyCheck: hex(check.subarray(0, 16)) };
+}
+
+/** 由签名派生密钥：返回 {aes: CryptoKey, keyCheck: hex} */
+export async function deriveKeys(signatureHex, container) {
+  const secret = await deriveSecret(signatureHex, container);
+  try { return await keysFromSecret(secret); } finally { secret.fill(0); }
 }
 
 export function randomFileId() {
