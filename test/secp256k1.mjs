@@ -44,3 +44,28 @@ export function personalSign(priv, text) {
 }
 
 export const randomPriv = () => mod(toBig(crypto.getRandomValues(new Uint8Array(32))), N - 1n) + 1n;
+
+/** 纯 JS ecrecover（仅测试用，对应链上预编译合约 0x01）。返回小写地址或 null */
+export function recoverPersonal(text, sigHex) {
+  const s = String(sigHex).replace(/^0x/, '');
+  if (s.length !== 130) return null;
+  const r = BigInt('0x' + s.slice(0, 64));
+  const sv = BigInt('0x' + s.slice(64, 128));
+  let v = parseInt(s.slice(128), 16);
+  if (v < 27) v += 27;
+  if (!r || r >= N || !sv || sv >= N || (v !== 27 && v !== 28)) return null;
+  const msg = new TextEncoder().encode(text);
+  const z = toBig(keccak256(new Uint8Array([...new TextEncoder().encode('\x19Ethereum Signed Message:\n' + msg.length), ...msg])));
+  // R = (r, y)，y 的奇偶由 v 决定；p ≡ 3 (mod 4)，平方根 = a^((p+1)/4)
+  const x = r;
+  const a = mod(x * x * x + 7n);
+  let y = 1n;
+  for (let e = (P + 1n) / 4n, b = a; e; e >>= 1n, b = mod(b * b)) if (e & 1n) y = mod(y * b);
+  if (mod(y * y) !== a) return null;
+  if (Number(y & 1n) !== v - 27) y = P - y;
+  const ri = inv(r, N);
+  const Q = add(mul(mod(sv * ri, N), [x, y]), mul(mod(-z * ri, N)));
+  if (!Q) return null;
+  const pub = Uint8Array.from((be(Q[0]) + be(Q[1])).match(/../g), (h) => parseInt(h, 16));
+  return '0x' + hexOf(keccak256(pub)).slice(-40);
+}
