@@ -61,7 +61,7 @@ function renderLookup(error = '') {
   el('button', { type: 'submit', class: 'btn primary' }, '查看'));
   root().replaceChildren(
     el('h2', {}, '我是继承人 / 守护人'),
-    el('p', { class: 'muted' }, '输入持有人发给你的文件夹编号。你不需要持有这枚电路，钱包只用来读取链上数据，不会签名，也不会发交易。'),
+    el('p', { class: 'muted' }, '输入持有人发给你的文件夹编号。连接任意一个 BSC 钱包即可：钱包只用来读取公链上的数据，你不需要持有这枚电路，也不需要余额，这里不会签名，也不会发交易。'),
     form,
     el('p', { class: 'hint', id: 'heir-folder-hint' }, '编号写在你收到的分发信息里，例如「文件夹：4452.0.tape」，输入 4452.0 即可。'),
     msg,

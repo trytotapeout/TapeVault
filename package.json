@@ -1,6 +1,6 @@
 {
   "name": "tapevault",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "description": "Encrypted on-chain file vault built on TapeOut circuit containers (DeWEB, no backend).",
   "type": "module",

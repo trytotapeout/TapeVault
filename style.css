@@ -214,6 +214,7 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 .hero { text-align: center; padding: 40px 12px 32px; }
 .hero h1 { font-size: 32px; margin-bottom: 12px; }
 .lead { font-size: 17px; color: var(--muted); max-width: 620px; margin: 0 auto 24px; }
+.hero-hint { max-width: 520px; margin: 12px auto 0; }
 .hero-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .heir-panel { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
 .heir-panel .field textarea { width: 100%; }
