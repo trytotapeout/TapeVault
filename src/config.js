@@ -32,6 +32,11 @@ export const SIG = Object.freeze({
   pathCount: 'pathCount(address)',
   pathsRange: 'pathsRange(address,uint256,uint256)',
   aggregate3: 'aggregate3((address,bool,bytes)[])',
+  read: 'read(address,string)',
+  readRange: 'readRange(address,string,uint256,uint256)',
+  putFile: 'putFile(address,string,string,bytes32,bytes)',
+  appendChunk: 'appendChunk(address,string,uint256,bytes)',
+  removeFile: 'removeFile(address,string)',
 });
 
 export const SEL = Object.freeze({
@@ -47,7 +52,22 @@ export const SEL = Object.freeze({
   pathCount: '0xb554782b',
   pathsRange: '0xb056072c',
   aggregate3: '0x82ad56cb',
+  read: '0xccaa7afb',
+  readRange: '0x15a4cae2',
+  putFile: '0xfab2ed82',
+  appendChunk: '0xe2b51347',
+  removeFile: '0x0a9c1871',
 });
+
+// SiteRegistry 写入限制（SPEC §5 / README）：每块最多 24,000 字节，最多 350 块
+export const CHUNK_SIZE = 24000;
+export const MAX_FILE_BYTES = 350 * CHUNK_SIZE;
+// readRange 每段读取字节数（SPEC 建议 96 KB）
+export const READ_RANGE = 96000;
+// 链上文件的内容类型：密文一律标成二进制，不暴露原文件类型
+export const CIPHER_CONTENT_TYPE = 'application/octet-stream';
+// 单文件上传上限。链上允许 8.4 MB，但一个 1 MB 文件就要约 42 笔交易，先限制在 2 MB，避免误传大文件
+export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 
 // 单次 Multicall 打包的调用数。公共节点对 eth_call 有 gas 上限，ownerOf/balanceOf 都很轻，400 个留足余量。
 export const MULTICALL_BATCH = 400;

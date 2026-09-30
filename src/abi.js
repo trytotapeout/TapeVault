@@ -31,6 +31,10 @@ function encodeStatic(type, v) {
   switch (type) {
     case 'uint': return word(v);
     case 'bool': return word(v ? 1 : 0);
+    case 'bytes32': {
+      if (!/^0x[0-9a-fA-F]{64}$/.test(v)) throw new Error('abi: bad bytes32');
+      return v.slice(2).toLowerCase();
+    }
     case 'address': {
       if (!/^0x[0-9a-fA-F]{40}$/.test(v)) throw new Error('abi: bad address ' + v);
       return v.slice(2).toLowerCase().padStart(64, '0');

@@ -59,6 +59,39 @@ export async function ensureChain(provider, net = BSC) {
   if ((await currentChainId(provider)) !== net.chainId) throw new Error('请在钱包里切换到 ' + net.name);
 }
 
+/** personal_sign 一段 UTF-8 文本，返回 0x 开头的签名 */
+export async function signText(provider, account, text) {
+  const bytes = new TextEncoder().encode(text);
+  const hex = '0x' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return provider.request({ method: 'personal_sign', params: [hex, account] });
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * 发送一笔交易并等到上链。先 eth_estimateGas（失败说明交易会回滚，不发送），gas 上浮 20%。
+ * 回滚或超时抛错。返回回执。
+ */
+export async function sendAndWait(provider, account, tx, { timeoutMs = 180000 } = {}) {
+  const req = { from: account, to: tx.to, data: tx.data, value: '0x0' };
+  const est = BigInt(await provider.request({ method: 'eth_estimateGas', params: [req] }));
+  const gas = '0x' + ((est * 12n) / 10n).toString(16);
+  const hash = await provider.request({ method: 'eth_sendTransaction', params: [{ ...req, gas }] });
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    const r = await provider.request({ method: 'eth_getTransactionReceipt', params: [hash] });
+    if (r && r.blockNumber) {
+      if (r.status !== '0x1') throw new Error('交易回滚：' + hash);
+      return r;
+    }
+    await sleep(1500);
+  }
+  throw new Error('等待交易确认超时：' + hash);
+}
+
+/** 用户在钱包里点了拒绝 */
+export const isUserRejection = (e) => e && (e.code === 4001 || e?.data?.originalError?.code === 4001 || /reject|denied|cancel/i.test(e.message || ''));
+
 /** 把 provider 包成 chain.js 需要的 rpc(method, params)。链是否正确由调用方在每次操作前用 ensureChain 确认。 */
 export function walletRpc(provider) {
   return (method, params) => provider.request({ method, params });

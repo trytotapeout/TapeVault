@@ -1,37 +1,14 @@
-// 界面层。链上读到的字符串（处理器名字、路径）都可能被任何人设置，一律用 textContent 渲染，不拼 HTML。
+// 界面层：钱包连接与文件夹列表。文件夹详情在 detail.js。
 
-import { BSC, VAULT_PREFIX } from './config.js';
+import { BSC } from './config.js';
 import { discoverWallets, connect, ensureChain, walletRpc } from './wallet.js';
 import { createChain } from './chain.js';
 import { scanFolders, verifyFolders, loadCache, saveCache, parseFolderInput, folderLabel } from './folders.js';
+import { $, el, short, errText } from './dom.js';
+import { openFolder as openDetail, closeFolder, forgetKeys } from './detail.js';
 
-const $ = (id) => document.getElementById(id);
 const state = { provider: null, account: null, chain: null, cpus: null, folders: [], busy: false };
-
-function el(tag, attrs = {}, ...children) {
-  const n = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'class') n.className = v;
-    else if (k === 'on') for (const [ev, fn] of Object.entries(v)) n.addEventListener(ev, fn);
-    else if (v !== undefined && v !== null && v !== false) n.setAttribute(k, v === true ? '' : v);
-  }
-  for (const c of children) if (c !== null && c !== undefined) n.append(c instanceof Node ? c : String(c));
-  return n;
-}
-
-const short = (a) => a ? a.slice(0, 6) + '…' + a.slice(-4) : '';
 const setStatus = (msg, kind = '') => { const s = $('status'); s.textContent = msg; s.dataset.kind = kind; };
-const errText = (e) => (e && (e.shortMessage || e.message)) || String(e);
-
-function formatSize(n) {
-  if (n < 1024) return n + ' B';
-  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-  return (n / 1024 / 1024).toFixed(2) + ' MB';
-}
-
-function formatTime(sec) {
-  return sec ? new Date(sec * 1000).toLocaleString('zh-CN', { hour12: false }) : '—';
-}
 
 // ---------------------------------------------------------------- 钱包
 
@@ -83,6 +60,7 @@ async function useWallet(w) {
 
 function onAccountsChanged(accounts) {
   if (!accounts || !accounts.length) return disconnect();
+  forgetKeys();
   state.account = String(accounts[0]).toLowerCase();
   state.folders = [];
   renderWallet();
@@ -92,6 +70,8 @@ function onAccountsChanged(accounts) {
 
 function disconnect() {
   state.provider?.removeListener?.('accountsChanged', onAccountsChanged);
+  closeFolder();
+  forgetKeys();   // 清掉内存里的密钥
   Object.assign(state, { provider: null, account: null, chain: null, cpus: null, folders: [] });
   $('wallet-area').replaceChildren(el('button', { type: 'button', id: 'connect-btn', class: 'btn primary', on: { click: onConnectClick } }, '连接钱包'));
   $('folders-view').hidden = true;
@@ -193,59 +173,15 @@ async function onAddSubmit(ev) {
 
 // ---------------------------------------------------------------- 文件夹详情
 
-async function openFolder(f) {
+function openFolder(f) {
   $('folders-view').hidden = true;
-  const d = $('folder-detail');
-  d.hidden = false;
-  $('detail-title').textContent = f.label;
-  $('detail-meta').replaceChildren(
-    ...metaRow('处理器', `${f.cpuName || '—'}（编号 ${f.cpu}）`),
-    ...metaRow('电路合约', f.circuits),
-    ...metaRow('容器地址', f.container),
-    ...metaRow('容器状态', f.opened ? '已开通' : '未开通'),
-  );
-  const body = $('detail-body');
+  $('folder-detail').hidden = false;
   $('back-btn').focus();
-  if (!f.opened) {
-    body.replaceChildren(el('p', { class: 'notice' }, '这枚电路的容器还没开通，暂时不能存放文件。请先在 TapeOut 官网为它开通容器，之后刷新这里即可使用。'));
-    return;
-  }
-  body.replaceChildren(el('p', { class: 'muted' }, '读取文件列表…'));
-  try {
-    await ensureChain(state.provider);
-    const block = await state.chain.pinBlock();
-    const v = await state.chain.vaultListing(f.container, block);
-    renderListing(body, v);
-  } catch (e) {
-    body.replaceChildren(el('p', { class: 'notice error' }, '读取失败：' + errText(e)));
-  }
-}
-
-function metaRow(k, v) {
-  return [el('dt', {}, k), el('dd', {}, el('code', {}, v || '—'))];
-}
-
-function renderListing(body, v) {
-  const parts = [];
-  if (v.otherFileCount) parts.push(el('p', { class: 'muted' }, `容器里另有 ${v.otherFileCount} 个非 TapeVault 文件（例如 DeWEB 网站），TapeVault 不会读取或改动它们。`));
-  if (!v.initialized) {
-    parts.push(el('p', { class: 'notice' }, `这个文件夹还没有初始化 TapeVault（${VAULT_PREFIX} 目录不存在）。上传与加密功能将在下一个版本提供。`));
-  } else if (!v.files.length) {
-    parts.push(el('p', { class: 'muted' }, '文件夹是空的。'));
-  } else {
-    const rows = v.files.map((f) => el('tr', {},
-      el('td', {}, el('code', {}, f.path.slice(VAULT_PREFIX.length))),
-      el('td', {}, formatSize(f.size)),
-      el('td', {}, formatTime(f.updatedAt))));
-    parts.push(el('table', { class: 'files' },
-      el('caption', { class: 'sr-only' }, '文件列表（内容已加密）'),
-      el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, '存储路径'), el('th', { scope: 'col' }, '大小'), el('th', { scope: 'col' }, '更新时间'))),
-      el('tbody', {}, ...rows)));
-  }
-  body.replaceChildren(...parts);
+  openDetail({ provider: state.provider, account: state.account, chain: state.chain }, f);
 }
 
 function closeDetail() {
+  closeFolder();
   $('folder-detail').hidden = true;
   if (state.account) $('folders-view').hidden = false;
 }

@@ -2,8 +2,9 @@
 //   浏览器里是用户钱包（EIP-1193 provider.request），测试里是直连公共节点。
 // 本模块不发起任何 fetch，也不依赖任何后端或索引服务。
 
-import { encodeCall, decodeResult, decodeAggregate3 } from './abi.js';
-import { BSC, SEL, MULTICALL_BATCH, PATHS_PAGE, VAULT_PREFIX, VAULT_META } from './config.js';
+import { encodeCall, decodeResult, decodeAggregate3, hexToBytes } from './abi.js';
+import { BSC, SEL, MULTICALL_BATCH, PATHS_PAGE, VAULT_PREFIX, VAULT_META, CHUNK_SIZE, MAX_FILE_BYTES, READ_RANGE } from './config.js';
+import { sha256Hex } from './crypto.js';
 
 const lower = (a) => String(a).toLowerCase();
 
@@ -23,10 +24,10 @@ export function createChain(rpc, net = BSC) {
   }
 
   /** 批量只读调用：calls = [{target, callData}]，返回 [{success, returnData}]，顺序与输入一致 */
-  async function multicall(calls, block = 'latest') {
+  async function multicall(calls, block = 'latest', batch = MULTICALL_BATCH) {
     const out = [];
-    for (let i = 0; i < calls.length; i += MULTICALL_BATCH) {
-      const chunk = calls.slice(i, i + MULTICALL_BATCH).map((c) => ({ ...c, allowFailure: true }));
+    for (let i = 0; i < calls.length; i += batch) {
+      const chunk = calls.slice(i, i + batch).map((c) => ({ ...c, allowFailure: true }));
       const data = encodeCall(SEL.aggregate3, ['call3[]'], [chunk]);
       out.push(...decodeAggregate3(await call(net.multicall3, data, block)));
     }
@@ -152,7 +153,7 @@ export function createChain(rpc, net = BSC) {
 
   /**
    * 读取容器里的 TapeVault 文件夹：只看 _tapevault/ 前缀，容器里的其他文件不碰。
-   * 返回 {initialized, files:[{path, size, updatedAt, ...}], otherFileCount}
+   * 返回 {initialized, meta, files:[{path, size, updatedAt, ...}], otherFileCount}；meta 是 _meta.json 的 fileInfo
    */
   async function vaultListing(container, block) {
     const paths = await allPaths(container, block);
@@ -161,8 +162,72 @@ export function createChain(rpc, net = BSC) {
     const files = [];
     for (const [path, info] of infos) if (path !== VAULT_META) files.push({ path, ...info });
     files.sort((a, b) => b.updatedAt - a.updatedAt);
-    return { initialized: infos.has(VAULT_META), files, otherFileCount: paths.length - mine.length };
+    return { initialized: infos.has(VAULT_META), meta: infos.get(VAULT_META) || null, files, otherFileCount: paths.length - mine.length };
   }
 
-  return { pinBlock, multicall, cpuCount, cpuList, holdings, maxTokenId, ownedIds, circuitInfos, allPaths, fileInfos, vaultListing };
+  async function gasPrice() {
+    return BigInt(await rpc('eth_gasPrice', []));
+  }
+
+  /** 读取文件的一段字节 */
+  async function readRange(container, path, offset, len, block) {
+    const data = encodeCall(SEL.readRange, ['address', 'string', 'uint', 'uint'], [container, path, offset, len]);
+    const [hex] = await view(net.registry, data, ['bytes'], block);
+    return hexToBytes(hex);
+  }
+
+  /** 批量读多个文件的开头 len 字节（用于列表时解文件头）。返回 Map(path → Uint8Array)，读失败的不在结果里 */
+  async function readHeads(container, paths, len, block) {
+    const res = await multicall(paths.map((p) => ({
+      target: net.registry,
+      callData: encodeCall(SEL.readRange, ['address', 'string', 'uint', 'uint'], [container, p, 0, len]),
+    })), block, 40);
+    const out = new Map();
+    res.forEach((r, i) => {
+      const v = take(r, ['bytes']);
+      if (v) out.set(paths[i], hexToBytes(v[0]));
+    });
+    return out;
+  }
+
+  /** 读取整个文件并核对长度与 SHA-256（SPEC §5 第 4 条）。onProgress(done, total) */
+  async function readVerified(container, path, info, block, onProgress) {
+    if (info.size > MAX_FILE_BYTES) throw new Error('文件超过 8.4 MB，拒绝读取');
+    const out = new Uint8Array(info.size);
+    for (let off = 0; off < info.size; off += READ_RANGE) {
+      const part = await readRange(container, path, off, READ_RANGE, block);
+      if (!part.length || off + part.length > info.size) throw new Error('读取长度异常');
+      out.set(part, off);
+      onProgress?.(off + part.length, info.size);
+    }
+    if ((await sha256Hex(out)) !== info.sha256) throw new Error('SHA-256 校验失败：文件可能还在上传中，或已损坏');
+    return out;
+  }
+
+  return { pinBlock, multicall, cpuCount, cpuList, holdings, maxTokenId, ownedIds, circuitInfos, allPaths, fileInfos, vaultListing, gasPrice, readRange, readHeads, readVerified };
+}
+
+// ---------------------------------------------------------------- 写入（生成交易，不签名、不发送）
+
+/** 把一个文件切成 SiteRegistry 的写入交易：第 1 笔 putFile，其余 appendChunk。返回 [{to, data}] */
+export function fileWriteTxs(container, path, contentType, sha256, bytes, net = BSC) {
+  if (!bytes.length) throw new Error('空文件');
+  if (bytes.length > MAX_FILE_BYTES) throw new Error('文件超过链上上限 8.4 MB');
+  const txs = [{
+    to: net.registry,
+    data: encodeCall(SEL.putFile, ['address', 'string', 'string', 'bytes32', 'bytes'],
+      [container, path, contentType, sha256, bytes.subarray(0, CHUNK_SIZE)]),
+  }];
+  for (let i = 1; i * CHUNK_SIZE < bytes.length; i++) {
+    txs.push({
+      to: net.registry,
+      data: encodeCall(SEL.appendChunk, ['address', 'string', 'uint', 'bytes'],
+        [container, path, i, bytes.subarray(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)]),
+    });
+  }
+  return txs;
+}
+
+export function removeFileTx(container, path, net = BSC) {
+  return { to: net.registry, data: encodeCall(SEL.removeFile, ['address', 'string'], [container, path]) };
 }
