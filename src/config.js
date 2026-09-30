@@ -1,0 +1,57 @@
+// 网络常量。地址来自 TapeKit SPEC §3.1（BNB Smart Chain 主网），2026-09-30 只读核对过。
+// 函数选择器 = keccak256(签名) 前 4 字节，test/abi.test.mjs 会逐个重算核对。
+
+export const BSC = Object.freeze({
+  chainId: 56,
+  chainIdHex: '0x38',
+  name: 'BNB Smart Chain',
+  currency: 'BNB',
+  factory: '0x68224f668083c29e9800be2a646d42d18cedf7e2',
+  opener: '0x021745de2f42a7839d96f2d3634d0294487d81f1',
+  registry: '0xd006ffdd5ae313b17729621a00999cd3c71ce5e6',
+  multicall3: '0xca11bde05977b3631167028862be2a173976ca11',
+  // 仅用于 wallet_addEthereumChain；读链一律走用户钱包自己的节点
+  rpcUrls: Object.freeze(['https://bsc-dataseed.bnbchain.org']),
+  explorer: 'https://bscscan.com',
+});
+
+// TapeVault 在容器里的专属目录。所有网盘文件都在这个前缀下，容器里的其他文件（DeWEB 网站等）不读不写。
+export const VAULT_PREFIX = '_tapevault/';
+export const VAULT_META = VAULT_PREFIX + '_meta.json';
+
+export const SIG = Object.freeze({
+  cpuCount: 'cpuCount()',
+  cpuAt: 'cpuAt(uint256)',
+  accountOf: 'accountOf(address,uint256)',
+  isOpened: 'isOpened(address,uint256)',
+  ownerOf: 'ownerOf(uint256)',
+  balanceOf: 'balanceOf(address)',
+  name: 'name()',
+  nextId: 'nextId()',
+  fileInfo: 'fileInfo(address,string)',
+  pathCount: 'pathCount(address)',
+  pathsRange: 'pathsRange(address,uint256,uint256)',
+  aggregate3: 'aggregate3((address,bool,bytes)[])',
+});
+
+export const SEL = Object.freeze({
+  cpuCount: '0xa94da8a7',
+  cpuAt: '0x4bc7cbbd',
+  accountOf: '0x0c1905e5',
+  isOpened: '0x8b508494',
+  ownerOf: '0x6352211e',
+  balanceOf: '0x70a08231',
+  name: '0x06fdde03',
+  nextId: '0x61b8ce8c',
+  fileInfo: '0x6c609107',
+  pathCount: '0xb554782b',
+  pathsRange: '0xb056072c',
+  aggregate3: '0x82ad56cb',
+});
+
+// 单次 Multicall 打包的调用数。公共节点对 eth_call 有 gas 上限，ownerOf/balanceOf 都很轻，400 个留足余量。
+export const MULTICALL_BATCH = 400;
+// 单个处理器按编号扫描持有的电路时，最多扫多少个编号；超过就改为手动添加，避免把钱包节点打爆。
+export const MAX_IDS_PER_CPU = 50000;
+// 列文件夹内容时每页读取的路径数
+export const PATHS_PAGE = 200;

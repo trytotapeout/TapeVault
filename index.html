@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 纯链上站点：只允许本站资源；connect-src 'none' 保证页面自己不发任何网络请求，读链全部经由钱包 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>TapeVault · 链上加密保险箱</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">▣</span>
+      <span>TapeVault</span>
+    </div>
+    <div class="wallet" id="wallet-area">
+      <button type="button" id="connect-btn" class="btn primary">连接钱包</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="intro" class="panel">
+      <h1>一枚电路，一个加密文件夹</h1>
+      <p>TapeVault 把文件加密后存进 TapeOut 电路容器，全部数据在 BNB Chain 上，没有服务器，也没有数据库。电路转手，文件夹随之转移。</p>
+      <p class="muted">连接钱包后，这里会列出你持有的电路。读链全部经由你的钱包节点完成，页面本身不发出任何网络请求。</p>
+    </section>
+
+    <div id="wallet-picker" class="panel" hidden>
+      <h2>选择钱包</h2>
+      <ul id="wallet-list" class="wallet-list"></ul>
+    </div>
+
+    <section id="folders-view" hidden>
+      <div class="toolbar">
+        <h2>我的文件夹</h2>
+        <div class="toolbar-actions">
+          <form id="add-form" class="add-form">
+            <label for="add-input" class="sr-only">手动添加电路</label>
+            <input id="add-input" type="text" placeholder="手动添加，如 4246.0" autocomplete="off" spellcheck="false">
+            <button type="submit" class="btn">添加</button>
+          </form>
+          <button type="button" id="rescan-btn" class="btn">重新扫描</button>
+        </div>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <ul id="folder-list" class="folder-list"></ul>
+    </section>
+
+    <section id="folder-detail" class="panel" hidden>
+      <button type="button" id="back-btn" class="btn link">← 返回文件夹列表</button>
+      <h2 id="detail-title"></h2>
+      <dl id="detail-meta" class="meta"></dl>
+      <div id="detail-body"></div>
+    </section>
+  </main>
+
+  <footer class="footer muted">
+    TapeVault v0.1.0 · 文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry
+  </footer>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
