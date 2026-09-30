@@ -160,12 +160,13 @@ export async function loadLegacy(chain, container, listing, block) {
 }
 
 /**
- * 某个持有人的当前托付状态。now = 链上时间（秒）。
+ * 某个持有人的当前托付状态。now = 链上时间（秒）；keyCheck = 文件夹当前的 keyCheck，只认用这把密钥设置的托付。
  * 返回 null（没有设置）或 {setup, lastAlive, releaseAt, released, daysLeft}
  */
-export function legacyStatus(records, owner, now) {
+export function legacyStatus(records, owner, now, keyCheck) {
   const me = lower(owner);
-  const setup = records.setups.find((s) => s.owner === me);
+  // 文件夹重置过（_meta.json 的 keyCheck 变了）：旧托付交出去的是旧密钥，对现在的文件没有用，不再算数
+  const setup = records.setups.find((s) => s.owner === me && (!keyCheck || s.keyCheck === keyCheck));
   if (!setup) return null;
   let lastAlive = setup.at;
   for (const c of records.checkins) if (c.owner === me && c.at > lastAlive) lastAlive = c.at;

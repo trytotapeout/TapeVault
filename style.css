@@ -91,6 +91,8 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 .btn:hover:not(:disabled) { border-color: var(--line-strong); }
 .btn:disabled { opacity: 0.5; cursor: progress; }
 .btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+.btn.danger { background: var(--err); color: #fff; border-color: var(--err); font-weight: 600; }
+.btn.danger:disabled { cursor: not-allowed; }
 .btn.link { background: none; border: none; color: var(--muted); padding: 4px 6px; }
 .btn.link:hover { color: var(--text); }
 :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
@@ -208,6 +210,10 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 .meta dd { margin: 0; }
 
 .notice { border-left: 3px solid var(--warn); padding: 8px 12px; background: var(--highlight); border-radius: 4px; }
+.reset-box { margin-top: 16px; }
+.reset-box h4 { margin: 4px 0 6px; font-size: 15px; }
+.reset-box p, .reset-box ul { margin: 0 0 8px; }
+.reset-box .ack { margin: 8px 0 12px; }
 .notice.error, .intro-error { border-left-color: var(--err); color: var(--err); }
 
 .files { width: 100%; border-collapse: collapse; font-size: 14px; }

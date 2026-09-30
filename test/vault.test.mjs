@@ -92,7 +92,28 @@ test('unlock: init requires deterministic signer; later requires same wallet', a
   await assert.rejects(vault.unlock(flaky, CONTAINER, 56, null), /两次签名结果不同/);
   const meta = vault.parseMeta(vault.buildMeta(keys.keyCheck));
   await vault.unlock(fakeSigner('a'), CONTAINER, 56, meta);
-  await assert.rejects(vault.unlock(fakeSigner('b'), CONTAINER, 56, meta), /另一个钱包/);
+  await assert.rejects(vault.unlock(fakeSigner('b'), CONTAINER, 56, meta), (e) => /另一个钱包/.test(e.message) && e.code === 'key-mismatch');
+});
+
+test('reset: new holder rewrites _meta.json, old files become locked', async () => {
+  const chain = fakeChain();
+  const oldKeys = await vault.unlock(fakeSigner('old'), CONTAINER, 56, null);
+  for (const tx of await vault.metaWriteTxs(CONTAINER, oldKeys.keyCheck)) chain.exec(tx);
+  (await vault.prepareUpload(oldKeys, CONTAINER, { name: 'old.txt', bytes: new TextEncoder().encode('x') })).txs.forEach(chain.exec);
+
+  const before = await vault.readMeta(chain, CONTAINER, await chain.vaultListing());
+  await assert.rejects(vault.unlock(fakeSigner('new'), CONTAINER, 56, before), (e) => e.code === 'key-mismatch');
+  // 重置 = 按首次初始化派生新密钥，再覆盖 _meta.json
+  const keys = await vault.unlock(fakeSigner('new'), CONTAINER, 56, null);
+  for (const tx of await vault.metaWriteTxs(CONTAINER, keys.keyCheck)) chain.exec(tx);
+
+  const listing = await chain.vaultListing();
+  const meta = await vault.readMeta(chain, CONTAINER, listing);
+  assert.equal(meta.keyCheck, keys.keyCheck);
+  await vault.unlock(fakeSigner('new'), CONTAINER, 56, meta);
+  const r = await vault.decodeListing(chain, keys, CONTAINER, listing);
+  assert.equal(r.entries.length, 0);
+  assert.equal(r.locked, 1);
 });
 
 test('upload → list → download, with chunking and same-name versions', async () => {

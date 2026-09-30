@@ -90,6 +90,14 @@ test('报平安推迟放行；别人签的记录和篡改过的记录被忽略',
   assert.equal(L.legacyStatus(recs, f.owner, f.t0 + 50 * DAY).released, true);
 });
 
+test('文件夹重置后（keyCheck 变了）旧托付不再算数', async () => {
+  const f = await setupFixture({ days: 30 });
+  const recs = await L.loadLegacy(f.chain, C, f.chain.listing());
+  const kc = (await keysFromSecret(f.secret)).keyCheck;
+  assert.ok(L.legacyStatus(recs, f.owner, f.t0 + DAY, kc));
+  assert.equal(L.legacyStatus(recs, f.owner, f.t0 + DAY, 'ff'.repeat(16)), null);
+});
+
 test('重放旧报平安不能把时间往后推', async () => {
   const f = await setupFixture({ days: 30 });
   const ci = await L.buildCheckin({ container: C, chainId: 56, owner: f.owner, sign: f.sign, now: f.t0 + 5 * DAY });

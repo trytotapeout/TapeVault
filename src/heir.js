@@ -92,6 +92,8 @@ async function load(raw) {
   const listing = await chain.vaultListing(info.container, block);
   const meta = listing.initialized ? await vault.readMeta(chain, info.container, listing, block) : null;
   const [records, now] = await Promise.all([loadLegacy(chain, info.container, listing, block), chain.chainTime(block)]);
+  // 文件夹重置过：只认用当前密钥（_meta.json 的 keyCheck）设置的托付，旧托付解出的是旧密钥，打不开现在的文件
+  if (meta) records.setups = records.setups.filter((x) => x.keyCheck === meta.keyCheck);
   if (!records.setups.length) throw new Error(t('这个文件夹里没有有效的托付记录'));
   view = { label: folderLabel(parsed.tokenId, parsed.cpu), container: info.container, holder: info.owner, listing, meta, records, now, block };
   keys = null;

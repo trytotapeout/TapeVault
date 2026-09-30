@@ -87,7 +87,7 @@ async function refresh() {
     s.listing = listing;
     s.meta = meta;
     s.now = now;
-    s.legacy = records ? legacyStatus(records, s.ctx.account, now) : null;
+    s.legacy = records ? legacyStatus(records, s.ctx.account, now, meta.keyCheck) : null;
     if (s.keys && meta) {
       const r = await vault.decodeListing(chain, s.keys, c, listing, block);
       if (seq !== s.seq) return;
@@ -148,15 +148,52 @@ function renderInit() {
 function renderLocked() {
   const msg = el('p', { class: 'action-msg', role: 'status', 'aria-live': 'polite' });
   const btn = el('button', { type: 'button', class: 'btn primary' }, t('签名解锁'));
+  const resetBox = el('div');
   btn.addEventListener('click', () => guarded(btn, msg, async () => {
     msg.textContent = t('请在钱包里签名（不花 gas）…');
-    s.keys = await vault.unlock(signer(), s.folder.container, BSC.chainId, s.meta);
+    try {
+      s.keys = await vault.unlock(signer(), s.folder.container, BSC.chainId, s.meta);
+    } catch (e) {
+      // 密钥对不上：当前持有人可以重置文件夹（例如电路是转手来的）；不是持有人就只提示
+      if (e.code === 'key-mismatch' && isHolder()) resetBox.replaceChildren(renderReset());
+      throw e;
+    }
     keyCache.set(cacheKey(), s.keys);
     await refresh();
   }));
   return el('div', { class: 'card' },
     el('h3', {}, t('🔒 保险箱已上锁')),
     el('p', { class: 'muted' }, t('链上共有 {0} 个加密文件。签名后在本机解开文件列表。密钥只保存在当前页面内存里，断开钱包或刷新页面后失效。', [s.listing.files.length])),
+    btn, msg, resetBox);
+}
+
+/**
+ * 重置文件夹：用当前钱包重新生成密钥，覆盖 _meta.json。
+ * 链上已有的密文删不掉也用不上（旧密钥不在了），列表里算作「用别的钱包加密」不显示；旧托付随之失效。
+ */
+function renderReset() {
+  const msg = el('p', { class: 'action-msg', role: 'status', 'aria-live': 'polite' });
+  const ack = el('input', { type: 'checkbox', id: 'reset-ack' });
+  const btn = el('button', { type: 'button', class: 'btn danger', disabled: true }, t('重置文件夹'));
+  ack.addEventListener('change', () => { btn.disabled = !ack.checked; });
+  btn.addEventListener('click', () => guarded(btn, msg, async () => {
+    if (!isHolder()) throw new Error(t('当前钱包不是这枚电路的持有人，不能重置。'));
+    msg.textContent = t('请在钱包里签名（共 2 次，用来生成并核对新的加密密钥，不花 gas）…');
+    const keys = await vault.unlock(signer(), s.folder.container, BSC.chainId, null);
+    msg.textContent = t('请在钱包里确认交易：覆盖 _tapevault/_meta.json（约 0.0001 BNB）…');
+    for (const tx of await vault.metaWriteTxs(s.folder.container, keys.keyCheck)) await sendAndWait(s.ctx.provider, s.ctx.account, tx);
+    s.keys = keys;
+    keyCache.set(cacheKey(), keys);
+    await refresh();
+  }));
+  return el('div', { class: 'notice reset-box' },
+    el('h4', {}, t('重置这个文件夹')),
+    el('p', {}, t('如果这个文件夹是你从别人手里接过来的，或者是用旧版本 TapeVault 初始化的，可以用当前钱包重置，重新开始使用。')),
+    el('ul', { class: 'plain' },
+      el('li', {}, t('链上现有的 {0} 个加密文件会永久无法解密（链上删不掉，也不会再显示）。', [s.listing.files.filter((f) => f.path.startsWith(vault.FILE_DIR)).length])),
+      el('li', {}, t('这个文件夹以前设置的托付全部失效，需要时重新设置。')),
+      el('li', {}, t('重置后只有当前钱包能解密新上传的文件。'))),
+    el('label', { class: 'ack' }, ack, el('span', {}, t('我了解：旧文件无法再解开，这个操作不能撤销。'))),
     btn, msg);
 }
 

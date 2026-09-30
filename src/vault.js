@@ -47,13 +47,13 @@ export async function metaWriteTxs(container, keyCheck) {
 /**
  * 通过钱包签名得到这个文件夹的密钥。
  * sign(text) → 签名。meta 为 null 表示首次初始化：签两次核对签名是否确定，不确定的钱包无法稳定恢复密钥，直接拒绝。
- * 已初始化时签一次，与 meta.keyCheck 对比，不一致说明换了钱包或钱包签名不确定。
+ * 已初始化时签一次，与 meta.keyCheck 对比，不一致说明换了钱包或钱包签名不确定（错误带 code = 'key-mismatch'，界面据此提供重置）。
  */
 export async function unlock(sign, container, chainId, meta) {
   const msg = keyMessage(container, chainId);
   const keys = await deriveKeys(await sign(msg), container);
   if (meta) {
-    if (keys.keyCheck !== meta.keyCheck) throw new Error(t('密钥核对失败：这个文件夹是用另一个钱包初始化的，当前钱包解不开里面的文件'));
+    if (keys.keyCheck !== meta.keyCheck) throw Object.assign(new Error(t('密钥核对失败：这个文件夹是用另一个钱包初始化的，当前钱包解不开里面的文件')), { code: 'key-mismatch' });
     return keys;
   }
   const again = await deriveKeys(await sign(msg), container);
