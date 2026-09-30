@@ -37,6 +37,7 @@ export const SIG = Object.freeze({
   putFile: 'putFile(address,string,string,bytes32,bytes)',
   appendChunk: 'appendChunk(address,string,uint256,bytes)',
   removeFile: 'removeFile(address,string)',
+  getCurrentBlockTimestamp: 'getCurrentBlockTimestamp()',
 });
 
 export const SEL = Object.freeze({
@@ -57,6 +58,7 @@ export const SEL = Object.freeze({
   putFile: '0xfab2ed82',
   appendChunk: '0xe2b51347',
   removeFile: '0x0a9c1871',
+  getCurrentBlockTimestamp: '0x0f28c97d',
 });
 
 // SiteRegistry 写入限制（SPEC §5 / README）：每块最多 24,000 字节，最多 350 块

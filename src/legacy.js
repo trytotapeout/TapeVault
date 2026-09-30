@@ -1,21 +1,29 @@
-// 遗产保险箱设置表单（界面预览）。只校验输入、计算公钥指纹，不做任何加密，也不上链。
+// 遗产保险箱设置表单：填写 → 核对 → 签名加密并写入链上 → 显示分发信息。
 // 方案：主密钥先用继承人公钥加密（内层），再用随机外锁密钥加密（外层）；
 // 外锁密钥用 Shamir 拆成 n 份，分别用守护人公钥加密。继承人凑齐 m 份碎片才能解开。
+// 记录格式与加密细节见 legacy-store.js。
 
-import { $, el } from './dom.js';
+import { $, el, errText, formatBnb } from './dom.js';
 import { BSC } from './config.js';
+import { ensureChain, signText, sendAndWait, isUserRejection } from './wallet.js';
+import { keyMessage, deriveSecret, keysFromSecret } from './crypto.js';
+import { estimateGas } from './vault.js';
+import { parsePublicKey } from './seal.js';
+import { buildSetup, MIN_DAYS, MAX_GUARDIANS } from './legacy-store.js';
 
-const MIN_DAYS = 7;
-const MAX_GUARDIANS = 7;
+export { parsePublicKey };
 
-let ctx = null;     // {folder, account}
+// ctx = {provider, account, chain, folder, meta, onDone}
+let ctx = null;
 let draft = null;   // 表单内容，「返回修改」时恢复
+let busy = false;
 
 const emptyPerson = () => ({ name: '', key: '' });
 const body = () => $('legacy-body');
 
-export function openLegacy(folder, account) {
-  ctx = { folder, account };
+export function openLegacy(c) {
+  ctx = c;
+  busy = false;
   draft = {
     checkinDays: 180, threshold: 2,
     heir: emptyPerson(),
@@ -26,24 +34,8 @@ export function openLegacy(folder, account) {
   $('legacy-dialog').showModal();
 }
 
-// ---------------------------------------------------------------- 公钥
-
-/** 接受 PEM 或裸 base64 的 SPKI；导入成功才算有效 P-256 公钥。返回 {fingerprint} */
-export async function parsePublicKey(text) {
-  const t = String(text || '').trim();
-  if (!t) throw new Error('请填写公钥');
-  const b64 = t.replace(/-----(BEGIN|END) PUBLIC KEY-----/g, '').replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
-  let der;
-  try { der = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)); } catch { throw new Error('格式不对，应为 PEM 或 base64'); }
-  try {
-    await crypto.subtle.importKey('spki', der, { name: 'ECDH', namedCurve: 'P-256' }, true, []);
-  } catch { throw new Error('不是有效的 P-256 公钥'); }
-  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', der));
-  return { fingerprint: fingerprint(h.slice(0, 16)) };
-}
-
-/** 16 字节 → 8 组 4 位十六进制，方便当面或电话核对 */
-const fingerprint = (bytes) => [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('').match(/.{4}/g).join(' ');
+/** 写链期间不让关窗口，避免签名或交易进行到一半 */
+export function legacyBusy() { return busy; }
 
 // ---------------------------------------------------------------- 表单
 
@@ -101,7 +93,7 @@ function renderForm(errors = []) {
 
     el('div', { class: 'modal-actions' },
       el('button', { type: 'button', class: 'btn', on: { click: () => $('legacy-dialog').close() } }, '取消'),
-      el('button', { type: 'submit', class: 'btn primary' }, '生成预览'),
+      el('button', { type: 'submit', class: 'btn primary' }, '下一步：核对'),
     ),
   );
   body().replaceChildren(form);
@@ -152,7 +144,7 @@ async function onSubmit(ev) {
   const people = [{ role: '继承人', ...d.heir }, ...d.guardians.map((g, i) => ({ role: `守护人 ${i + 1}`, ...g }))];
   for (const p of people) {
     if (!p.name) errors.push(`${p.role}：请填写称呼`);
-    try { p.fingerprint = (await parsePublicKey(p.key)).fingerprint; } catch (e) { errors.push(`${p.role}的公钥：${e.message}`); }
+    try { Object.assign(p, await parsePublicKey(p.key)); } catch (e) { errors.push(`${p.role}的公钥：${e.message}`); }
   }
   // 同一把公钥不能出现两次：继承人兼任守护人会让门限失效
   const seen = new Map();
@@ -165,82 +157,134 @@ async function onSubmit(ev) {
   if (errors.length) return renderForm(errors);
 
   const [heir, ...guardians] = people;
-  renderResult(heir, guardians);
+  await renderConfirm(heir, guardians);
 }
 
-// ---------------------------------------------------------------- 预览结果
+// ---------------------------------------------------------------- 核对与写链
 
-function renderResult(heir, guardians) {
+async function renderConfirm(heir, guardians) {
+  const d = draft;
+  const n = guardians.length;
+  // 记录大小：每位守护人约 330 字节（公钥 + 指纹 + 碎片），固定部分约 1.2 KB
+  const approxBytes = 1200 + n * 330;
+  let cost = '';
+  try { cost = '约 ' + formatBnb(estimateGas(approxBytes, 1) * await ctx.chain.gasPrice()); } catch { cost = '（暂时读不到 gas 价格）'; }
+  const msg = el('p', { class: 'action-msg', role: 'status', 'aria-live': 'polite' });
+  const go = el('button', { type: 'button', class: 'btn primary' }, '签名并写入链上');
+  const back = el('button', { type: 'button', class: 'btn' }, '返回修改');
+  back.addEventListener('click', () => { if (!busy) renderForm(); });
+  go.addEventListener('click', () => runSetup(go, back, msg, heir, guardians));
+
+  body().replaceChildren(
+    el('h3', {}, '请核对'),
+    el('dl', { class: 'meta compact' },
+      el('dt', {}, '文件夹'), el('dd', {}, ctx.folder.label),
+      el('dt', {}, '放行条件'), el('dd', {}, `${d.checkinDays} 天未报平安`),
+      el('dt', {}, '放行门限'), el('dd', {}, `${d.threshold} / ${n} 位守护人`),
+      el('dt', {}, '继承人'), el('dd', {}, `${heir.name} · `, el('code', {}, heir.fingerprint)),
+      ...guardians.flatMap((g, i) => [el('dt', {}, `守护人 ${i + 1}`), el('dd', {}, `${g.name} · `, el('code', {}, g.fingerprint))]),
+      el('dt', {}, '费用'), el('dd', {}, `1 笔交易，${cost}`),
+    ),
+    el('p', { class: 'muted small' }, '写入前请和每个人当面或电话核对一遍公钥指纹。接下来钱包会弹出 2 次签名（不花 gas）和 1 笔交易：'),
+    el('ol', { class: 'plain' },
+      el('li', {}, '签名生成文件夹密钥，和你解锁保险箱时签的是同一条消息；'),
+      el('li', {}, '签名确认这份托付记录，将来守护人和继承人靠它核对是你本人设置的；'),
+      el('li', {}, '交易把加密后的记录写入 _tapevault/legacy/。')),
+    el('div', { class: 'modal-actions' }, back, go),
+    msg,
+  );
+}
+
+async function runSetup(go, back, msg, heir, guardians) {
+  if (busy) return;
+  busy = true;
+  go.disabled = back.disabled = true;
+  msg.dataset.kind = '';
+  const { provider, account, chain, folder, meta } = ctx;
+  const sign = (text) => signText(provider, account, text);
+  let secret = null;
+  try {
+    await ensureChain(provider);
+    msg.textContent = '第 1 步：请在钱包里签名，生成文件夹密钥…';
+    secret = await deriveSecret(await sign(keyMessage(folder.container, BSC.chainId)), folder.container);
+    if ((await keysFromSecret(secret)).keyCheck !== meta.keyCheck) throw new Error('密钥核对失败：当前钱包不是初始化这个保险箱的钱包');
+    msg.textContent = '第 2 步：请在钱包里签名，确认托付记录…';
+    const now = await chain.chainTime();
+    const rec = await buildSetup({
+      secret, container: folder.container, chainId: BSC.chainId, owner: account, now,
+      days: draft.checkinDays, threshold: draft.threshold,
+      heir: { spki: heir.spki }, guardians: guardians.map((g) => ({ spki: g.spki })), sign,
+    });
+    secret.fill(0);
+    secret = null;
+    for (let i = 0; i < rec.txs.length; i++) {
+      msg.textContent = `第 3 步：请在钱包里确认交易${rec.txs.length > 1 ? `（${i + 1} / ${rec.txs.length}）` : ''}…`;
+      await sendAndWait(provider, account, rec.txs[i]);
+    }
+    busy = false;
+    renderResult(heir, guardians, rec);
+    ctx.onDone?.();
+  } catch (e) {
+    msg.dataset.kind = 'error';
+    msg.textContent = isUserRejection(e) ? '已在钱包里取消，没有写入任何内容。' : errText(e);
+  } finally {
+    if (secret) secret.fill(0);
+    busy = false;
+    go.disabled = back.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------- 结果：分发信息
+
+function renderResult(heir, guardians, rec) {
   const d = draft;
   const f = ctx.folder;
   const n = guardians.length;
-  const rule = `从你最后一次报平安算起，超过 ${d.checkinDays} 天没有再报平安，守护人即可放行。`;
-
-  const record = {
-    app: 'tapevault', type: 'legacy', v: 1,
-    owner: ctx.account,
-    checkinDays: d.checkinDays,
-    threshold: d.threshold,
-    heir: { fingerprint: heir.fingerprint },
-    guardians: guardians.map((g) => ({ fingerprint: g.fingerprint })),
-    sealedKey: '<文件夹主密钥：先用继承人公钥加密，再用外锁密钥加密>',
-    shares: guardians.map((_, i) => `<外锁碎片 ${i + 1}：用守护人 ${i + 1} 的公钥加密>`),
-  };
-
+  const rule = `从持有人最后一次报平安算起，超过 ${d.checkinDays} 天没有再报平安，守护人即可放行。`;
   const header = [
     'TapeVault 遗产保险箱',
     `文件夹：${f.label}`,
     `容器地址：${f.container}`,
     `网络：${BSC.name}`,
     `持有人钱包：${ctx.account}`,
+    `托付记录：${rec.path}`,
   ];
   const guardianList = guardians.map((g, i) => `  ${i + 1}. ${g.name}（指纹 ${g.fingerprint}）`);
   const heirText = [
-    ...header,
-    '',
+    ...header, '',
     `你是继承人：${heir.name}`,
     `你的公钥指纹：${heir.fingerprint}`,
     `放行门限：${n} 位守护人中任意 ${d.threshold} 位`,
-    '守护人：', ...guardianList,
-    '',
+    '守护人：', ...guardianList, '',
     `放行条件：${rule}`,
     `只靠你的私钥无法解密，还需要至少 ${d.threshold} 位守护人交出的钥匙碎片。`,
-    `放行后：收集至少 ${d.threshold} 份碎片，在 TapeVault 打开这个文件夹，导入你的私钥即可解密全部文件。`,
+    `放行后：在 TapeVault 首页选「我是继承人 / 守护人」，输入文件夹 ${f.label}，粘贴收到的碎片并导入你的私钥，即可解密下载全部文件。`,
     '请离线妥善保管你的私钥。私钥丢失将无法继承，私钥被盗可能导致提前泄露。',
   ].join('\n');
   const guardianText = (g, i) => [
-    ...header,
-    '',
+    ...header, '',
     `你是守护人 ${i + 1}：${g.name}`,
     `你的公钥指纹：${g.fingerprint}`,
     `继承人：${heir.name}（指纹 ${heir.fingerprint}）`,
-    `放行门限：${n} 位守护人中任意 ${d.threshold} 位`,
-    '',
+    `放行门限：${n} 位守护人中任意 ${d.threshold} 位`, '',
     `放行条件：${rule}`,
-    '放行时：在 TapeVault 打开这个文件夹的守护人视图，核对链上报平安记录确已到期，用你的私钥解开碎片后交给继承人。',
-    '条件满足前请不要交出碎片。你看不到文件内容，只负责放行。',
+    `放行时：在 TapeVault 首页选「我是继承人 / 守护人」，输入文件夹 ${f.label}，页面会显示链上报平安记录是否已到期。到期后导入你的私钥，页面生成一段碎片（tvs1: 开头），发给继承人即可。碎片只有继承人能用。`,
+    '放行前请先尝试联系持有人本人。条件满足前请不要交出碎片。你看不到文件内容，只负责放行。',
   ].join('\n');
 
   body().replaceChildren(
-    el('p', { class: 'notice' }, '这是预览：还没有做任何加密，也不会写入链上。'),
+    el('p', { class: 'notice' }, '托付已写入链上。请把下面的信息分别发给每个人，这些内容不会再显示，关闭前请先复制保存。'),
     el('dl', { class: 'meta compact' },
       el('dt', {}, '文件夹'), el('dd', {}, f.label),
-      el('dt', {}, '触发条件'), el('dd', {}, `${d.checkinDays} 天未报平安即放行`),
+      el('dt', {}, '放行条件'), el('dd', {}, `${d.checkinDays} 天未报平安`),
       el('dt', {}, '放行门限'), el('dd', {}, `${d.threshold} / ${n} 位守护人`),
-      el('dt', {}, '继承人'), el('dd', {}, `${heir.name} · `, el('code', {}, heir.fingerprint)),
+      el('dt', {}, '记录'), el('dd', {}, el('code', {}, rec.path)),
     ),
-
-    el('h3', {}, '链上记录（将写入 _tapevault/legacy/）'),
-    el('p', { class: 'muted small' }, '明文部分任何人都能读到：天数、门限和公钥指纹。称呼不会上链。'),
-    el('pre', { class: 'record', tabindex: '0', 'aria-label': '链上记录预览' }, JSON.stringify(record, null, 2)),
-
     el('h3', {}, '需要分发的信息'),
-    el('p', { class: 'muted small' }, '通过线下或你信任的渠道分别发给每个人，发之前当面或电话核对一遍公钥指纹。'),
+    el('p', { class: 'muted small' }, '通过线下或你信任的渠道分别发给每个人，发之前当面或电话核对一遍公钥指纹。称呼只在这里出现，没有写入链上。'),
     distCard('lg-out-heir', `继承人 · ${heir.name}`, heirText),
     ...guardians.map((g, i) => distCard(`lg-out-g${i}`, `守护人 ${i + 1} · ${g.name}`, guardianText(g, i))),
-
     el('div', { class: 'modal-actions' },
-      el('button', { type: 'button', class: 'btn', on: { click: () => renderForm() } }, '返回修改'),
       el('button', { type: 'button', class: 'btn primary', on: { click: () => $('legacy-dialog').close() } }, '完成'),
     ),
   );

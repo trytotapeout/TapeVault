@@ -1,7 +1,6 @@
 // 仅测试用的 secp256k1 personal_sign 实现（BigInt，不防侧信道，不要用于真实私钥）。
+// 浏览器和 Node 共用；Node 18 需要调用方先把 webcrypto 挂到 globalThis.crypto。
 import { keccak256 } from '../src/keccak.js';
-import { webcrypto } from 'node:crypto';
-if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
 const P = 2n ** 256n - 2n ** 32n - 977n;
 const N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;

@@ -5,6 +5,7 @@
 
 import { decodeResult, hexToBytes, bytesToHex } from '../src/abi.js';
 import { BSC, SEL, CHUNK_SIZE } from '../src/config.js';
+import { personalSign, addressOf, randomPriv } from './secp256k1.mjs';
 
 const lower = (a) => String(a).toLowerCase();
 const word = (n) => BigInt.asUintN(256, BigInt(n)).toString(16).padStart(64, '0');
@@ -14,6 +15,8 @@ const utf8 = (s) => new TextEncoder().encode(s);
 
 export const store = new Map();   // path → {bytes, contentType, sha256, updatedAt}
 export const sent = [];
+/** ecrecover 结果改写：测试私钥地址 → 模拟的持有人地址 */
+const recoverAlias = new Map();
 let clock = Math.floor(Date.now() / 1000);
 
 function registryCall(data) {
@@ -57,14 +60,18 @@ function execTx(data) {
   } else throw new Error('mock: unsupported tx');
 }
 
-export function install(account, { failAtTx = -1, rejectSign = false } = {}) {
+export function install(account, { failAtTx = -1, rejectSign = false, signerKey = null } = {}) {
+  // 模拟钱包的地址是真实持有人地址（为了读到真实电路），但我们没有它的私钥。
+  // 遗产记录的签名改用一把测试私钥，并让 ecrecover 把这把私钥的地址映射回 account。
+  const key = signerKey || randomPriv();
+  recoverAlias.set(addressOf(key), lower(account));
   let id = 0;
   const real = async (method, params) => {
     const j = await (await fetch('/__rpc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params }) })).json();
     if (j.error) throw new Error(j.error.message);
     return j.result;
   };
-  const opts = { failAtTx, rejectSign };
+  const opts = { failAtTx, rejectSign, signerKey: key };
   const provider = {
     opts,
     async request({ method, params }) {
@@ -74,8 +81,14 @@ export function install(account, { failAtTx = -1, rejectSign = false } = {}) {
         case 'eth_gasPrice': return '0x2faf080';
         case 'personal_sign': {
           if (opts.rejectSign) throw Object.assign(new Error('User rejected'), { code: 4001 });
-          const h = new Uint8Array(await crypto.subtle.digest('SHA-256', hexToBytes(params[0])));
-          return bytesToHex(new Uint8Array([...h, ...h, 27]));
+          const text = new TextDecoder().decode(hexToBytes(params[0]));
+          // 派生加密密钥的消息必须每次得到相同签名：用确定性假签名（ecrecover 不会用到它）
+          if (text.startsWith('TapeVault 加密密钥')) {
+            const h = new Uint8Array(await crypto.subtle.digest('SHA-256', hexToBytes(params[0])));
+            return bytesToHex(new Uint8Array([...h, ...h, 27]));
+          }
+          // 其余消息（遗产记录）用真实 secp256k1 私钥签名，ecrecover 恢复出 opts.signer
+          return personalSign(opts.signerKey, text);
         }
         case 'eth_estimateGas': return '0x100000';
         case 'eth_sendTransaction': {
@@ -88,6 +101,11 @@ export function install(account, { failAtTx = -1, rejectSign = false } = {}) {
         case 'eth_call': {
           const { to, data } = params[0];
           if (lower(to) === BSC.registry) return registryCall(data);
+          if (lower(to) === '0x0000000000000000000000000000000000000001') {
+            const out = await real(method, params);
+            const got = '0x' + out.slice(-40).toLowerCase();
+            return recoverAlias.has(got) ? '0x' + word(BigInt(recoverAlias.get(got))) : out;
+          }
           // 批量调用里有发往 SiteRegistry 的才拆开模拟，否则整批转发
           if (lower(to) === BSC.multicall3 && data.includes(BSC.registry.slice(2))) return multicall(data, params[1], real);
           return real(method, params);

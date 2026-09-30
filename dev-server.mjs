@@ -11,7 +11,8 @@ const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PORT = Number(process.argv[2] || process.env.PORT || 5178);
 const RPC = process.env.RPC || 'https://bsc-dataseed.bnbchain.org';
 const ALLOWED = new Set(['eth_call', 'eth_blockNumber', 'eth_chainId']);
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json' };
 
 createServer(async (req, res) => {
   try {

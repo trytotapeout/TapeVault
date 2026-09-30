@@ -5,10 +5,9 @@ import { discoverWallets, connect, ensureChain, walletRpc } from './wallet.js';
 import { createChain } from './chain.js';
 import { scanFolders, verifyFolders, loadCache, saveCache, parseFolderInput, folderLabel } from './folders.js';
 import { $, el, short, errText } from './dom.js';
-import { openFolder as openDetail, closeFolder, forgetKeys } from './detail.js';
-import { openLegacy } from './legacy.js';
+import { openFolder as openDetail, closeFolder, forgetKeys, openLegacyDialog, legacyBusy } from './detail.js';
 
-const state = { provider: null, account: null, chain: null, cpus: null, folders: [], busy: false, current: null };
+const state = { provider: null, account: null, chain: null, cpus: null, folders: [], busy: false };
 const setStatus = (msg, kind = '') => { const s = $('status'); s.textContent = msg; s.dataset.kind = kind; };
 
 // ---------------------------------------------------------------- 钱包
@@ -176,7 +175,6 @@ async function onAddSubmit(ev) {
 // ---------------------------------------------------------------- 文件夹详情
 
 function openFolder(f) {
-  state.current = f;
   $('folders-view').hidden = true;
   $('folder-detail').hidden = false;
   $('back-btn').focus();
@@ -185,7 +183,6 @@ function openFolder(f) {
 
 function closeDetail() {
   closeFolder();
-  state.current = null;
   $('folder-detail').hidden = true;
   if (state.account) $('folders-view').hidden = false;
 }
@@ -195,9 +192,10 @@ function closeDetail() {
 $('connect-btn').addEventListener('click', onConnectClick);
 $('hero-connect').addEventListener('click', onConnectClick);
 $('wallet-picker-close').addEventListener('click', () => $('wallet-picker').close());
-// 遗产保险箱：目前只是界面预览，不加密也不上链
-$('legacy-btn').addEventListener('click', () => { if (state.current) openLegacy(state.current, state.account); });
-$('legacy-close').addEventListener('click', () => $('legacy-dialog').close());
+$('legacy-btn').addEventListener('click', openLegacyDialog);
+$('legacy-close').addEventListener('click', () => { if (!legacyBusy()) $('legacy-dialog').close(); });
+// 签名或交易进行中不允许按 Esc 关闭
+$('legacy-dialog').addEventListener('cancel', (e) => { if (legacyBusy()) e.preventDefault(); });
 // 点遮罩关闭（点击落在 dialog 自身而不是里面的内容上）
 // 遗产表单内容多，不做点遮罩关闭，避免误触丢掉已填内容
 $('wallet-picker').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });

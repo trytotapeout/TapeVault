@@ -205,6 +205,12 @@ export function createChain(rpc, net = BSC) {
     return out;
   }
 
+  /** 链上时间（秒）：Multicall3.getCurrentBlockTimestamp()，倒计时一律用它，不用本机时钟 */
+  async function chainTime(block = 'latest') {
+    const [t] = await view(net.multicall3, SEL.getCurrentBlockTimestamp, ['uint'], block);
+    return Number(t);
+  }
+
   /**
    * 核对 personal_sign 签名：用 ecrecover 预编译合约（地址 0x01）恢复签名人。
    * 经由 eth_call 在节点上算，页面不必带椭圆曲线库。签名无效时返回 null。
@@ -225,7 +231,7 @@ export function createChain(rpc, net = BSC) {
     return /^0x0{40}$/.test(addr) ? null : addr;
   }
 
-  return { pinBlock, multicall, recoverSigner, cpuCount, cpuList, holdings, maxTokenId, ownedIds, circuitInfos, allPaths, fileInfos, vaultListing, gasPrice, readRange, readHeads, readVerified };
+  return { pinBlock, multicall, recoverSigner, chainTime, cpuCount, cpuList, holdings, maxTokenId, ownedIds, circuitInfos, allPaths, fileInfos, vaultListing, gasPrice, readRange, readHeads, readVerified };
 }
 
 // ---------------------------------------------------------------- 写入（生成交易，不签名、不发送）

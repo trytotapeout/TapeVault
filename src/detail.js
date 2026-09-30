@@ -5,9 +5,11 @@ import { $, el, errText, formatSize, formatTime, formatBnb } from './dom.js';
 import { BSC, VAULT_PREFIX, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from './config.js';
 import { ensureChain, signText, sendAndWait, isUserRejection } from './wallet.js';
 import * as vault from './vault.js';
+import { loadLegacy, legacyStatus, buildCheckin } from './legacy-store.js';
+import { openLegacy, legacyBusy } from './legacy.js';
 
 // 当前会话。keys 只放在内存里，关闭页面即失效；换文件夹、换账户都会清掉。
-const s = { ctx: null, folder: null, keys: null, listing: null, meta: null, entries: [], locked: 0, broken: 0, busy: false, seq: 0 };
+const s = { ctx: null, folder: null, keys: null, listing: null, meta: null, entries: [], locked: 0, broken: 0, busy: false, seq: 0, legacy: null, now: 0 };
 
 const lower = (a) => String(a).toLowerCase();
 const body = () => $('detail-body');
@@ -25,7 +27,8 @@ export function forgetKeys() {
 /** ctx = {provider, account, chain}；由 app.js 在打开文件夹时传入 */
 export async function openFolder(ctx, f) {
   s.seq++;
-  Object.assign(s, { ctx, folder: f, keys: null, listing: null, meta: null, entries: [], locked: 0, broken: 0, busy: false });
+  Object.assign(s, { ctx, folder: f, keys: null, listing: null, meta: null, entries: [], locked: 0, broken: 0, busy: false, legacy: null, now: 0 });
+  $('legacy-btn').hidden = true;
   s.keys = keyCache.get(cacheKey()) || null;
   $('detail-title').textContent = f.label;
   $('detail-meta').replaceChildren(
@@ -43,7 +46,7 @@ export async function openFolder(ctx, f) {
 
 export function closeFolder() {
   s.seq++;
-  Object.assign(s, { ctx: null, folder: null, keys: null, listing: null, meta: null, entries: [] });
+  Object.assign(s, { ctx: null, folder: null, keys: null, listing: null, meta: null, entries: [], legacy: null });
 }
 
 function metaRow(k, v) {
@@ -61,9 +64,12 @@ async function refresh() {
     const block = await chain.pinBlock();
     const listing = await chain.vaultListing(c, block);
     const meta = listing.initialized ? await vault.readMeta(chain, c, listing, block) : null;
+    const [records, now] = meta ? await Promise.all([loadLegacy(chain, c, listing, block), chain.chainTime(block)]) : [null, 0];
     if (seq !== s.seq) return;
     s.listing = listing;
     s.meta = meta;
+    s.now = now;
+    s.legacy = records ? legacyStatus(records, s.ctx.account, now) : null;
     if (s.keys && meta) {
       const r = await vault.decodeListing(chain, s.keys, c, listing, block);
       if (seq !== s.seq) return;
@@ -80,6 +86,9 @@ function render() {
   if (s.listing.otherFileCount) {
     parts.push(el('p', { class: 'muted small' }, `容器里另有 ${s.listing.otherFileCount} 个非 TapeVault 文件（例如 DeWEB 网站），TapeVault 不会读取或改动它们。`));
   }
+  // 标题旁的「设为遗产保险箱」：已初始化、当前钱包是持有人、还没设置过时才显示
+  $('legacy-btn').hidden = !(s.meta && isHolder() && !s.legacy);
+  if (s.legacy) parts.push(renderLegacyStatus());
   if (!s.meta) parts.push(renderInit());
   else if (!s.keys) parts.push(renderLocked());
   else parts.push(renderUpload(), renderFiles());
@@ -131,6 +140,45 @@ function renderLocked() {
     el('h3', {}, '🔒 保险箱已上锁'),
     el('p', { class: 'muted' }, `链上共有 ${s.listing.files.length} 个加密文件。签名后在本机解开文件列表。密钥只保存在当前页面内存里，断开钱包或刷新页面后失效。`),
     btn, msg);
+}
+
+// ---------------------------------------------------------------- 遗产托付
+
+/** 打开设置窗口（由 app.js 的标题按钮调用） */
+export function openLegacyDialog() {
+  if (!s.folder || !s.meta || !isHolder() || s.legacy) return;
+  openLegacy({ provider: s.ctx.provider, account: s.ctx.account, chain: s.ctx.chain, folder: s.folder, meta: s.meta, onDone: () => refresh() });
+}
+
+export { legacyBusy };
+
+function renderLegacyStatus() {
+  const st = s.legacy;
+  const msg = el('p', { class: 'action-msg', role: 'status', 'aria-live': 'polite' });
+  const date = (t) => new Date(t * 1000).toLocaleDateString('zh-CN');
+  const btn = el('button', { type: 'button', class: 'btn primary' }, '我还在（报平安）');
+  btn.addEventListener('click', () => guarded(btn, msg, async () => {
+    if (!isHolder()) throw new Error('当前钱包不是这枚电路的持有人，不能报平安。');
+    msg.textContent = '请在钱包里签名（不花 gas）…';
+    const rec = await buildCheckin({
+      container: s.folder.container, chainId: BSC.chainId, owner: s.ctx.account, now: await s.ctx.chain.chainTime(),
+      sign: (text) => signText(s.ctx.provider, s.ctx.account, text),
+    });
+    for (const tx of rec.txs) {
+      msg.textContent = '请在钱包里确认交易（约 0.0001 BNB）…';
+      await sendAndWait(s.ctx.provider, s.ctx.account, tx);
+    }
+    await refresh();
+  }));
+  const g = st.setup.guardians.length;
+  return el('section', { class: 'card legacy-status' + (st.released ? ' due' : ''), 'aria-label': '遗产托付状态' },
+    el('h3', {}, st.released ? '⚠️ 遗产托付：已到期' : '🛡 遗产托付已设置'),
+    el('p', {}, st.released
+      ? `已超过 ${st.setup.days} 天没有报平安，守护人现在可以放行。如果你还在，请立即报平安。`
+      : `距离放行还有 ${st.daysLeft} 天。上次报平安：${date(st.lastAlive)}，到期日：${date(st.releaseAt)}。`),
+    el('p', { class: 'muted small' }, `放行条件：${st.setup.days} 天未报平安 · 门限 ${st.setup.threshold} / ${g} 位守护人 · 继承人指纹 `, el('code', {}, st.setup.heir.fingerprint)),
+    isHolder() ? btn : null,
+    msg);
 }
 
 /** 执行一个需要钱包交互的动作：期间禁用按钮，拒绝签名 / 交易给出友好提示 */

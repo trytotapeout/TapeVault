@@ -145,6 +145,11 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 .dist-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .detail-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 12px; }
 .detail-head h2 { margin: 0; }
+.legacy-btn[hidden] { display: none; }
+.legacy-status { margin-bottom: 20px; border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.legacy-status p { margin: 0 0 10px; }
+.legacy-status.due { border-color: var(--err); }
+.legacy-status.due h3 { color: var(--err); }
 .legacy-btn {
   display: inline-flex; align-items: center; gap: 8px; font-weight: 600;
   color: var(--accent-text); background: var(--highlight); border-color: var(--accent);

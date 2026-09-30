@@ -1,4 +1,6 @@
 // 主网只读冒烟测试（手动运行：npm run live [钱包地址]）。直连公共节点，只发 eth_call / eth_blockNumber。
+import { webcrypto } from 'node:crypto';
+if (!globalThis.crypto) globalThis.crypto = webcrypto;
 import { createChain } from '../src/chain.js';
 import { scanFolders, verifyFolders } from '../src/folders.js';
 
@@ -37,4 +39,12 @@ for (const f of folders) {
   if (got !== want) process.exitCode = 1;
   const bad = await chain.recoverSigner(text + 'x', sig);
   console.log(`ecrecover tampered: ${bad !== want ? 'ok' : 'MISMATCH'}`);
+}
+
+// 链上时间应与本机时间相差不超过 10 分钟
+{
+  const t = await chain.chainTime();
+  const drift = Math.abs(t - Date.now() / 1000);
+  console.log(`chainTime: ${t} (drift ${drift.toFixed(0)}s) ${drift < 600 ? 'ok' : 'MISMATCH'}`);
+  if (drift >= 600) process.exitCode = 1;
 }
