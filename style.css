@@ -66,7 +66,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .logo { color: var(--accent-text); }
 .wallet { display: flex; align-items: center; gap: 8px; }
 .topbar-right { display: flex; align-items: center; gap: 8px; }
-.theme-toggle { width: 36px; height: 36px; padding: 0; display: inline-grid; place-items: center; }
+.btn.theme-toggle { width: 36px; height: 36px; padding: 0; display: inline-grid; place-items: center; }
 .theme-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .theme-toggle .icon-sun, :root[data-theme="light"] .theme-toggle .icon-moon { display: none; }
 :root[data-theme="light"] .theme-toggle .icon-sun { display: block; }
