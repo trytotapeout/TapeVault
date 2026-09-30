@@ -32,10 +32,15 @@
         <h1>一枚 TapeOut NFT 电路，就是一个加密保险箱</h1>
         <p class="lead">TapeVault 把文件加密后存进 TapeOut 电路容器。全部数据都在 BNB Chain 上，没有服务器，也没有数据库。</p>
         <div class="hero-actions">
-          <button type="button" id="hero-connect" class="btn primary large">连接钱包开始使用</button>
-          <button type="button" id="hero-heir" class="btn large" aria-describedby="hero-heir-hint">我是继承人 / 守护人</button>
+          <div class="hero-action">
+            <button type="button" id="hero-connect" class="btn primary large" aria-describedby="hero-connect-hint">连接钱包开始使用</button>
+            <span class="hint" id="hero-connect-hint">用持有 TapeOut 电路的钱包</span>
+          </div>
+          <div class="hero-action">
+            <button type="button" id="hero-heir" class="btn large" aria-describedby="hero-heir-hint">我是继承人 / 守护人</button>
+            <span class="hint" id="hero-heir-hint">任意 BSC 钱包即可，只读取链上数据，<br>不签名、不发交易、不需要余额</span>
+          </div>
         </div>
-        <p class="hint hero-hint" id="hero-heir-hint">继承人和守护人：连接任意一个 BSC 钱包即可。钱包只用来读取公链上的数据，不需要持有电路，也不需要余额，不会签名或发交易。</p>
       </div>
 
       <ul class="features" aria-label="产品特性">
@@ -139,7 +144,7 @@
       作者：<code id="x-handle">x.com/boostbob</code>
       <button type="button" id="copy-x" class="btn link small" aria-describedby="x-handle">复制</button>
     </p>
-    <p>TapeVault v0.6.1 · 文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</p>
+    <p>TapeVault v0.6.2 · 文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</p>
   </footer>
 
   <script type="module" src="src/app.js"></script>
