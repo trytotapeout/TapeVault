@@ -166,7 +166,10 @@ label.btn { display: inline-block; }
 .files td.name { word-break: break-all; }
 .file-section > p { margin: 8px 0 0; }
 
-.footer { text-align: center; font-size: 13px; padding: 24px; }
+.footer { text-align: center; font-size: 13px; padding: 24px; border-top: 1px solid var(--line); margin-top: 24px; }
+.footer p { margin: 6px 0; }
+.support code { color: var(--text); }
+.support .btn.link { padding: 2px 6px; color: var(--accent); }
 
 @media (max-width: 600px) {
   .topbar, main { padding-left: 14px; padding-right: 14px; }

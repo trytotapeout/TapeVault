@@ -190,6 +190,20 @@ function closeDetail() {
 
 $('connect-btn').addEventListener('click', onConnectClick);
 $('hero-connect').addEventListener('click', onConnectClick);
+$('copy-donate').addEventListener('click', async () => {
+  const btn = $('copy-donate');
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText($('donate-address').textContent.trim());
+    ok = true;
+  } catch {
+    // 剪贴板不可用（非安全来源等）：选中地址，让用户手动复制
+    getSelection().selectAllChildren($('donate-address'));
+  }
+  btn.textContent = ok ? '已复制' : '已选中，请手动复制';
+  $('copy-status').textContent = ok ? '钱包地址已复制' : '钱包地址已选中';
+  setTimeout(() => { btn.textContent = '复制'; }, 2000);
+});
 $('rescan-btn').addEventListener('click', () => loadFolders(true));
 $('add-form').addEventListener('submit', onAddSubmit);
 $('back-btn').addEventListener('click', closeDetail);
