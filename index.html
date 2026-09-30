@@ -38,7 +38,7 @@
             <span class="hint" id="hero-connect-hint" data-i18n>用持有 TapeOut 电路的钱包</span>
           </div>
           <div class="hero-action">
-            <button type="button" id="hero-heir" class="btn large" aria-describedby="hero-heir-hint" data-i18n>我是继承人 / 守护人</button>
+            <button type="button" id="hero-heir" class="btn large" aria-describedby="hero-heir-hint" data-i18n>我是受托人 / 守护人</button>
             <span class="hint" id="hero-heir-hint" data-i18n>任意 BSC 钱包即可，只读取链上数据，<br>不签名、不发交易、不需要余额</span>
           </div>
         </div>
@@ -76,17 +76,17 @@
 
     <dialog id="legacy-dialog" class="modal wide" aria-labelledby="legacy-title">
       <div class="modal-head">
-        <h2 id="legacy-title" data-i18n>设置遗产保险箱</h2>
+        <h2 id="legacy-title" data-i18n>设置托付保险箱</h2>
         <button type="button" id="legacy-close" class="btn link" aria-label="关闭" data-i18n-aria="关闭">✕</button>
       </div>
       <p class="notice legacy-intro" data-i18n>这个功能是测试功能。我们想寻求一种不依赖任何人的、去中心化的文件夹密钥释放机制，目前还在探索中。</p>
       <section class="legacy-scheme" aria-labelledby="legacy-scheme-title">
-        <h3 id="legacy-scheme-title" data-i18n>目前的方案：继承人密钥 + 守护人密钥</h3>
+        <h3 id="legacy-scheme-title" data-i18n>目前的方案：受托人密钥 + 守护人密钥</h3>
         <ul class="plain">
-          <li data-i18n><strong>准备继承人密钥</strong>：继承人在线下自己生成一对 P-256 密钥，只把公钥交给你，私钥由他离线保管。</li>
+          <li data-i18n><strong>准备受托人密钥</strong>：受托人在线下自己生成一对 P-256 密钥，只把公钥交给你，私钥由他离线保管。</li>
           <li data-i18n><strong>准备守护人密钥</strong>：每位守护人（如律师、亲友）同样在线下各自生成密钥对，只把公钥交给你。</li>
-          <li data-i18n><strong>加密</strong>：文件夹主密钥先用继承人公钥加密，再用一把外锁密钥加密。外锁密钥拆成碎片，每份用一位守护人的公钥加密后存上链。</li>
-          <li data-i18n><strong>放行</strong>：你超过设定天数没有报平安，守护人各自解开碎片交给继承人。继承人凑够门限数量的碎片，加上自己的私钥，才能解开文件夹。只靠其中任何一方都解不开。</li>
+          <li data-i18n><strong>加密</strong>：文件夹主密钥先用受托人公钥加密，再用一把外锁密钥加密。外锁密钥拆成碎片，每份用一位守护人的公钥加密后存上链。</li>
+          <li data-i18n><strong>放行</strong>：你超过设定天数没有报平安，守护人各自解开碎片交给受托人。受托人凑够门限数量的碎片，加上自己的私钥，才能解开文件夹。只靠其中任何一方都解不开。</li>
         </ul>
         <p class="hint" data-i18n>生成密钥对：<code>openssl ecparam -name prime256v1 -genkey -noout -out key.pem</code>，再用 <code>openssl ec -in key.pem -pubout</code> 导出公钥。</p>
       </section>
@@ -97,7 +97,7 @@
       <div class="toolbar">
         <h2 data-i18n>我的文件夹</h2>
         <span class="row">
-          <button type="button" id="heir-open-btn" class="btn" data-i18n>我是继承人 / 守护人</button>
+          <button type="button" id="heir-open-btn" class="btn" data-i18n>我是受托人 / 守护人</button>
           <button type="button" id="rescan-btn" class="btn" data-i18n>重新扫描</button>
         </span>
       </div>
@@ -125,7 +125,7 @@
         <h2 id="detail-title"></h2>
         <button type="button" id="legacy-btn" class="btn legacy-btn" aria-haspopup="dialog" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v5c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6l-8-3Z"/><path d="M12 8v4l2.5 1.5"/></svg>
-          <span data-i18n>设为遗产保险箱</span>
+          <span data-i18n>设为托付保险箱</span>
           <span class="soon" data-i18n>测试版</span>
         </button>
       </div>
@@ -145,7 +145,7 @@
       <span data-i18n>作者：</span><code id="x-handle">x.com/boostbob</code>
       <button type="button" id="copy-x" class="btn link small" aria-describedby="x-handle" data-i18n>复制</button>
     </p>
-    <p><span>TapeVault v0.7.1</span> · <span data-i18n>文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</span></p>
+    <p><span>TapeVault v0.7.2</span> · <span data-i18n>文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</span></p>
   </footer>
 
   <script type="module" src="src/app.js"></script>

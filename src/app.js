@@ -9,7 +9,7 @@ import { openFolder as openDetail, closeFolder, forgetKeys, openLegacyDialog, le
 import { openHeir, closeHeir } from './heir.js';
 import { t, getLang, setLang, onLang, applyStatic } from './i18n.js';
 
-// wantHeir：从「我是继承人 / 守护人」进来，连上钱包后直接去继承人页面
+// wantHeir：从「我是受托人 / 守护人」进来，连上钱包后直接去受托人页面
 const state = { provider: null, account: null, chain: null, cpus: null, folders: [], busy: false, wantHeir: false };
 // msg 可以是函数：切换语言时重新生成，状态栏跟着换语言
 let statusMsg = null;
@@ -198,7 +198,7 @@ function closeDetail() {
   if (state.account) $('folders-view').hidden = false;
 }
 
-// ---------------------------------------------------------------- 继承人 / 守护人
+// ---------------------------------------------------------------- 受托人 / 守护人
 
 function showHeir() {
   closeFolder();
@@ -234,7 +234,7 @@ $('hero-connect').addEventListener('click', onConnectClick);
 $('hero-heir').addEventListener('click', () => { state.wantHeir = true; onConnectClick(); });
 $('heir-open-btn').addEventListener('click', showHeir);
 $('heir-back').addEventListener('click', hideHeir);
-// 没选钱包就关掉选择窗口（✕、Esc、点遮罩）：取消「去继承人页面」的意图，避免之后普通连接也跳过去
+// 没选钱包就关掉选择窗口（✕、Esc、点遮罩）：取消「去受托人页面」的意图，避免之后普通连接也跳过去
 $('wallet-picker').addEventListener('close', () => { if ($('wallet-picker').returnValue !== 'picked') state.wantHeir = false; });
 $('wallet-picker-close').addEventListener('click', () => $('wallet-picker').close());
 $('legacy-btn').addEventListener('click', openLegacyDialog);
@@ -242,7 +242,7 @@ $('legacy-close').addEventListener('click', () => { if (!legacyBusy()) $('legacy
 // 签名或交易进行中不允许按 Esc 关闭
 $('legacy-dialog').addEventListener('cancel', (e) => { if (legacyBusy()) e.preventDefault(); });
 // 点遮罩关闭（点击落在 dialog 自身而不是里面的内容上）
-// 遗产表单内容多，不做点遮罩关闭，避免误触丢掉已填内容
+// 托付表单内容多，不做点遮罩关闭，避免误触丢掉已填内容
 $('wallet-picker').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 /** 复制按钮：把 source 元素的文本写进剪贴板；不可用时选中文本让用户手动复制 */
 function bindCopy(btnId, sourceId, what) {

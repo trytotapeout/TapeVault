@@ -51,7 +51,7 @@ test('t() 默认返回中文原文并替换占位符', () => {
 
 test('签名文字不走翻译：keyMessage 与 signText 保持固定中文', async () => {
   const { keyMessage } = await import('../src/crypto.js');
-  assert.match(keyMessage('0xAbC', 56), /^TapeVault 加密密钥\n/);
+  assert.match(keyMessage('0xAbC', 56), /^TapeVault 文件夹密钥\n/);
   assert.doesNotMatch(read('src/crypto.js').match(/export function keyMessage[\s\S]*?\n}\n/)[0], /\bt\(/);
   assert.doesNotMatch(read('src/legacy-store.js').match(/export async function signText[\s\S]*?\n}\n/)[0], /\bt\(/);
 });

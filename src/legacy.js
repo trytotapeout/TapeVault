@@ -1,6 +1,6 @@
-// 遗产保险箱设置表单：填写 → 核对 → 签名加密并写入链上 → 显示分发信息。
-// 方案：主密钥先用继承人公钥加密（内层），再用随机外锁密钥加密（外层）；
-// 外锁密钥用 Shamir 拆成 n 份，分别用守护人公钥加密。继承人凑齐 m 份碎片才能解开。
+// 托付保险箱设置表单：填写 → 核对 → 签名加密并写入链上 → 显示分发信息。
+// 方案：主密钥先用受托人公钥加密（内层），再用随机外锁密钥加密（外层）；
+// 外锁密钥用 Shamir 拆成 n 份，分别用守护人公钥加密。受托人凑齐 m 份碎片才能解开。
 // 记录格式与加密细节见 legacy-store.js。
 
 import { $, el, errText, formatBnb } from './dom.js';
@@ -70,9 +70,9 @@ function renderForm(errors = []) {
     ),
 
     el('fieldset', {},
-      el('legend', {}, t('2. 继承人')),
-      el('p', { class: 'muted small' }, t('只靠继承人的私钥无法解密。继承人还需要拿到足够数量守护人交出的钥匙碎片，两者合在一起才能解开文件。')),
-      personFields('lg-heir', d.heir, t('继承人')),
+      el('legend', {}, t('2. 受托人')),
+      el('p', { class: 'muted small' }, t('只靠受托人的私钥无法解密。受托人还需要拿到足够数量守护人交出的钥匙碎片，两者合在一起才能解开文件。')),
+      personFields('lg-heir', d.heir, t('受托人')),
     ),
 
     el('fieldset', {},
@@ -100,7 +100,7 @@ function renderForm(errors = []) {
 
     el('label', { class: 'ack' },
       el('input', { type: 'checkbox', id: 'lg-ack', checked: d.ack }),
-      el('span', {}, t('我了解：设置后无法撤回。继承人加上足够数量的守护人合作，就能解开这个文件夹里现在的全部文件。')),
+      el('span', {}, t('我了解：设置后无法撤回。受托人加上足够数量的守护人合作，就能解开这个文件夹里现在的全部文件。')),
     ),
 
     el('div', { class: 'modal-actions' },
@@ -124,7 +124,7 @@ function personFields(id, p, who) {
   return el('div', { class: 'person' },
     el('div', { class: 'field' },
       el('label', { for: id + '-name' }, t('称呼')),
-      el('input', { id: id + '-name', type: 'text', value: p.name, placeholder: t('如：{0}', [who === t('继承人') ? t('小明') : t('王律师')]), autocomplete: 'off' }),
+      el('input', { id: id + '-name', type: 'text', value: p.name, placeholder: t('如：{0}', [who === t('受托人') ? t('小明') : t('王律师')]), autocomplete: 'off' }),
     ),
     el('div', { class: 'field' },
       el('label', { for: id + '-key' }, t('公钥（P-256，PEM 或 base64）')),
@@ -153,12 +153,12 @@ async function onSubmit(ev) {
   const days = (v, what) => { if (!Number.isInteger(v) || v < MIN_DAYS) errors.push(t('{0}至少 {1} 天（整数）', [what, MIN_DAYS])); };
   days(d.checkinDays, t('放行天数'));
 
-  const people = [{ role: t('继承人'), ...d.heir }, ...d.guardians.map((g, i) => ({ role: t('守护人 {0}', [i + 1]), ...g }))];
+  const people = [{ role: t('受托人'), ...d.heir }, ...d.guardians.map((g, i) => ({ role: t('守护人 {0}', [i + 1]), ...g }))];
   for (const p of people) {
     if (!p.name) errors.push(t('{0}：请填写称呼', [p.role]));
     try { Object.assign(p, await parsePublicKey(p.key)); } catch (e) { errors.push(t('{0}的公钥：{1}', [p.role, e.message])); }
   }
-  // 同一把公钥不能出现两次：继承人兼任守护人会让门限失效
+  // 同一把公钥不能出现两次：受托人兼任守护人会让门限失效
   const seen = new Map();
   for (const p of people) {
     if (!p.fingerprint) continue;
@@ -194,14 +194,14 @@ async function renderConfirm(heir, guardians) {
       el('dt', {}, t('文件夹')), el('dd', {}, ctx.folder.label),
       el('dt', {}, t('放行条件')), el('dd', {}, t('{0} 天未报平安', [d.checkinDays])),
       el('dt', {}, t('放行门限')), el('dd', {}, t('{0} / {1} 位守护人', [d.threshold, n])),
-      el('dt', {}, t('继承人')), el('dd', {}, `${heir.name} · `, el('code', {}, heir.fingerprint)),
+      el('dt', {}, t('受托人')), el('dd', {}, `${heir.name} · `, el('code', {}, heir.fingerprint)),
       ...guardians.flatMap((g, i) => [el('dt', {}, t('守护人 {0}', [i + 1])), el('dd', {}, `${g.name} · `, el('code', {}, g.fingerprint))]),
       el('dt', {}, t('费用')), el('dd', {}, t('1 笔交易，{0}', [cost])),
     ),
     el('p', { class: 'muted small' }, t('写入前请和每个人当面或电话核对一遍公钥指纹。接下来钱包会弹出 2 次签名（不花 gas）和 1 笔交易：')),
     el('ol', { class: 'plain' },
       el('li', {}, t('签名生成文件夹密钥，和你解锁保险箱时签的是同一条消息；')),
-      el('li', {}, t('签名确认这份托付记录，将来守护人和继承人靠它核对是你本人设置的；')),
+      el('li', {}, t('签名确认这份托付记录，将来守护人和受托人靠它核对是你本人设置的；')),
       el('li', {}, t('交易把加密后的记录写入 _tapevault/legacy/。'))),
     el('div', { class: 'modal-actions' }, back, go),
     msg,
@@ -256,7 +256,7 @@ function renderResult(heir, guardians, rec) {
   const n = guardians.length;
   const rule = t('从持有人最后一次报平安算起，超过 {0} 天没有再报平安，守护人即可放行。', [d.checkinDays]);
   const header = [
-    t('TapeVault 遗产保险箱'),
+    t('TapeVault 托付保险箱'),
     t('文件夹：{0}', [f.label]),
     t('容器地址：{0}', [f.container]),
     t('网络：{0}', [BSC.name]),
@@ -266,23 +266,23 @@ function renderResult(heir, guardians, rec) {
   const guardianList = guardians.map((g, i) => t('  {0}. {1}（指纹 {2}）', [i + 1, g.name, g.fingerprint]));
   const heirText = [
     ...header, '',
-    t('你是继承人：{0}', [heir.name]),
+    t('你是受托人：{0}', [heir.name]),
     t('你的公钥指纹：{0}', [heir.fingerprint]),
     t('放行门限：{0} 位守护人中任意 {1} 位', [n, d.threshold]),
     t('守护人：'), ...guardianList, '',
     t('放行条件：{0}', [rule]),
     t('只靠你的私钥无法解密，还需要至少 {0} 位守护人交出的钥匙碎片。', [d.threshold]),
-    t('放行后：在 TapeVault 首页选「我是继承人 / 守护人」，输入文件夹 {0}，粘贴收到的碎片并导入你的私钥，即可解密下载全部文件。', [f.label]),
-    t('请离线妥善保管你的私钥。私钥丢失将无法继承，私钥被盗可能导致提前泄露。'),
+    t('放行后：在 TapeVault 首页选「我是受托人 / 守护人」，输入文件夹 {0}，粘贴收到的碎片并导入你的私钥，即可解密下载全部文件。', [f.label]),
+    t('请离线妥善保管你的私钥。私钥丢失将无法解开，私钥被盗可能导致提前泄露。'),
   ].join('\n');
   const guardianText = (g, i) => [
     ...header, '',
     t('你是守护人 {0}：{1}', [i + 1, g.name]),
     t('你的公钥指纹：{0}', [g.fingerprint]),
-    t('继承人：{0}（指纹 {1}）', [heir.name, heir.fingerprint]),
+    t('受托人：{0}（指纹 {1}）', [heir.name, heir.fingerprint]),
     t('放行门限：{0} 位守护人中任意 {1} 位', [n, d.threshold]), '',
     t('放行条件：{0}', [rule]),
-    t('放行时：在 TapeVault 首页选「我是继承人 / 守护人」，输入文件夹 {0}，页面会显示链上报平安记录是否已到期。到期后导入你的私钥，页面生成一段碎片（tvs1: 开头），发给继承人即可。碎片只有继承人能用。', [f.label]),
+    t('放行时：在 TapeVault 首页选「我是受托人 / 守护人」，输入文件夹 {0}，页面会显示链上报平安记录是否已到期。到期后导入你的私钥，页面生成一段碎片（tvs1: 开头），发给受托人即可。碎片只有受托人能用。', [f.label]),
     t('放行前请先尝试联系持有人本人。条件满足前请不要交出碎片。你看不到文件内容，只负责放行。'),
   ].join('\n');
 
@@ -296,7 +296,7 @@ function renderResult(heir, guardians, rec) {
     ),
     el('h3', {}, t('需要分发的信息')),
     el('p', { class: 'muted small' }, t('通过线下或你信任的渠道分别发给每个人，发之前当面或电话核对一遍公钥指纹。称呼只在这里出现，没有写入链上。')),
-    distCard('lg-out-heir', t('继承人 · {0}', [heir.name]), heirText),
+    distCard('lg-out-heir', t('受托人 · {0}', [heir.name]), heirText),
     ...guardians.map((g, i) => distCard(`lg-out-g${i}`, t('守护人 {0} · {1}', [i + 1, g.name]), guardianText(g, i))),
     el('div', { class: 'modal-actions' },
       el('button', { type: 'button', class: 'btn primary', on: { click: () => $('legacy-dialog').close() } }, t('完成')),

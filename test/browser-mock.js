@@ -64,7 +64,7 @@ function execTx(data) {
 
 export function install(account, { failAtTx = -1, rejectSign = false, signerKey = null } = {}) {
   // 模拟钱包的地址是真实持有人地址（为了读到真实电路），但我们没有它的私钥。
-  // 遗产记录的签名改用一把测试私钥，并让 ecrecover 把这把私钥的地址映射回 account。
+  // 托付记录的签名改用一把测试私钥，并让 ecrecover 把这把私钥的地址映射回 account。
   const key = signerKey || randomPriv();
   recoverAlias.set(addressOf(key), lower(account));
   let id = 0;
@@ -85,11 +85,11 @@ export function install(account, { failAtTx = -1, rejectSign = false, signerKey 
           if (opts.rejectSign) throw Object.assign(new Error('User rejected'), { code: 4001 });
           const text = new TextDecoder().decode(hexToBytes(params[0]));
           // 派生加密密钥的消息必须每次得到相同签名：用确定性假签名（ecrecover 不会用到它）
-          if (text.startsWith('TapeVault 加密密钥')) {
+          if (text.startsWith('TapeVault 文件夹密钥')) {
             const h = new Uint8Array(await crypto.subtle.digest('SHA-256', hexToBytes(params[0])));
             return bytesToHex(new Uint8Array([...h, ...h, 27]));
           }
-          // 其余消息（遗产记录）用真实 secp256k1 私钥签名，ecrecover 恢复出 opts.signer
+          // 其余消息（托付记录）用真实 secp256k1 私钥签名，ecrecover 恢复出 opts.signer
           return personalSign(opts.signerKey, text);
         }
         case 'eth_estimateGas': return '0x100000';

@@ -1,4 +1,4 @@
-// 遗产托付的链上记录（与界面无关，可在 Node 里测试）。
+// 托付的链上记录（与界面无关，可在 Node 里测试）。
 //
 // 目录（容器内，全部是明文 JSON，任何人都能读）：
 //   _tapevault/legacy/s-<秒>-<随机>.json   设置记录：门限、各方公钥、加密后的主密钥与碎片
@@ -8,10 +8,10 @@
 //
 // 加密结构（setup.sealed / setup.shares）：
 //   secret = 文件夹的 64 字节密钥材料（crypto.deriveSecret）
-//   inner  = seal(继承人公钥, secret, "heir:<容器>")
+//   inner  = seal(受托人公钥, secret, "heir:<容器>")
 //   outer  = AES-GCM(外锁密钥 K, inner)，AAD = "tapevault/legacy/outer:<容器>"
 //   shares = Shamir(K, n, m)，第 i 份用守护人 i 的公钥 seal，info = "guardian:<i>:<容器>"
-// 继承人需要 m 份碎片复原 K，再用自己的私钥解开 inner。
+// 受托人需要 m 份碎片复原 K，再用自己的私钥解开 inner。
 
 import { VAULT_PREFIX } from './config.js';
 import { sha256Hex, keysFromSecret } from './crypto.js';
@@ -32,7 +32,7 @@ const RECORD = /^_tapevault\/legacy\/([sc])-(\d{1,12})-([0-9a-f]{8})\.json$/;
 const heirInfo = (c) => 'heir:' + lower(c);
 const guardianInfo = (i, c) => `guardian:${i}:${lower(c)}`;
 const outerAad = (c) => enc.encode('tapevault/legacy/outer:' + lower(c));
-/** 守护人交给继承人的碎片：用继承人公钥加密，info 绑定碎片编号和容器 */
+/** 守护人交给受托人的碎片：用受托人公钥加密，info 绑定碎片编号和容器 */
 const releaseInfo = (i, c) => `release:${i}:${lower(c)}`;
 
 function recordPath(kind, now) {
@@ -51,8 +51,8 @@ function canonical(v) {
 export async function signText(kind, body) {
   const digest = await sha256Hex(enc.encode(canonical(body)));
   const head = kind === 's'
-    ? ['TapeVault 遗产托付：设置', '', `文件夹容器：${body.container}`, `放行条件：${body.days} 天未报平安`, `门限：${body.threshold} / ${body.guardians.length} 位守护人`]
-    : ['TapeVault 遗产托付：报平安', '', `文件夹容器：${body.container}`, `时间：${new Date(body.time * 1000).toISOString()}`];
+    ? ['TapeVault 托付：设置', '', `文件夹容器：${body.container}`, `放行条件：${body.days} 天未报平安`, `门限：${body.threshold} / ${body.guardians.length} 位守护人`]
+    : ['TapeVault 托付：报平安', '', `文件夹容器：${body.container}`, `时间：${new Date(body.time * 1000).toISOString()}`];
   return [...head, `链：${body.chainId}`, `记录摘要：${digest}`, '', '签名不花费 gas。只在 TapeVault 页面签署这条消息。'].join('\n');
 }
 
@@ -119,7 +119,7 @@ async function finish(kind, body, p) {
 
 function parseRecord(bytes) {
   const r = JSON.parse(dec.decode(bytes));
-  if (r.app !== 'tapevault' || r.v !== 1 || typeof r.sig !== 'string') throw new Error(t('不是 TapeVault 遗产记录'));
+  if (r.app !== 'tapevault' || r.v !== 1 || typeof r.sig !== 'string') throw new Error(t('不是 TapeVault 托付记录'));
   const { sig, ...body } = r;
   return { body, sig };
 }
@@ -134,7 +134,7 @@ function validSetup(b, container) {
 }
 
 /**
- * 读取容器里的遗产记录。listing 来自 chain.vaultListing。
+ * 读取容器里的托付记录。listing 来自 chain.vaultListing。
  * 返回 {setups:[{…body, path, at}], checkins:[…], ignored}，只包含签名核对通过的记录，新的在前。
  * at = min(签名里的时间, 链上写入时间)：把旧签名复制到新文件里（重放）不能把时间往后推。
  */
@@ -175,7 +175,7 @@ export function legacyStatus(records, owner, now) {
 
 // ---------------------------------------------------------------- 放行
 
-/** 守护人：用私钥找出自己是第几位，解开碎片，改用继承人公钥加密。返回可交给继承人的字符串 */
+/** 守护人：用私钥找出自己是第几位，解开碎片，改用受托人公钥加密。返回可交给受托人的字符串 */
 export async function guardianRelease(setup, guardianPriv) {
   const i = setup.guardians.findIndex((g) => g.fingerprint === guardianPriv.fingerprint);
   if (i < 0) throw new Error(t('这把私钥不是这份托付里的任何一位守护人'));
@@ -194,10 +194,10 @@ export function parseShare(text) {
 }
 
 /**
- * 继承人：用私钥和至少 threshold 份碎片解开文件夹。返回 {aes, keyCheck}（与持有人签名解锁得到的相同）。
+ * 受托人：用私钥和至少 threshold 份碎片解开文件夹。返回 {aes, keyCheck}（与持有人签名解锁得到的相同）。
  */
 export async function heirOpen(setup, heirPriv, shareTexts) {
-  if (heirPriv.fingerprint !== setup.heir.fingerprint) throw new Error(t('私钥与这份托付的继承人公钥指纹不符'));
+  if (heirPriv.fingerprint !== setup.heir.fingerprint) throw new Error(t('私钥与这份托付的受托人公钥指纹不符'));
   const seen = new Set();
   const parts = [];
   for (const text of shareTexts) {

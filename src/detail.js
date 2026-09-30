@@ -104,7 +104,7 @@ function render() {
   if (s.listing.otherFileCount) {
     parts.push(el('p', { class: 'muted small' }, t('容器里另有 {0} 个非 TapeVault 文件（例如 DeWEB 网站），TapeVault 不会读取或改动它们。', [s.listing.otherFileCount])));
   }
-  // 标题旁的「设为遗产保险箱」：已初始化、当前钱包是持有人、还没设置过时才显示
+  // 标题旁的「设为托付保险箱」：已初始化、当前钱包是持有人、还没设置过时才显示
   $('legacy-btn').hidden = !(s.meta && isHolder() && !s.legacy);
   if (s.legacy) parts.push(renderLegacyStatus());
   if (!s.meta) parts.push(renderInit());
@@ -160,7 +160,7 @@ function renderLocked() {
     btn, msg);
 }
 
-// ---------------------------------------------------------------- 遗产托付
+// ---------------------------------------------------------------- 托付
 
 /** 打开设置窗口（由 app.js 的标题按钮调用） */
 export function openLegacyDialog() {
@@ -188,12 +188,12 @@ function renderLegacyStatus() {
     await refresh();
   }));
   const g = st.setup.guardians.length;
-  return el('section', { class: 'card legacy-status' + (st.released ? ' due' : ''), 'aria-label': t('遗产托付状态') },
-    el('h3', {}, st.released ? t('⚠️ 遗产托付：已到期') : t('🛡 遗产托付已设置')),
+  return el('section', { class: 'card legacy-status' + (st.released ? ' due' : ''), 'aria-label': t('托付状态') },
+    el('h3', {}, st.released ? t('⚠️ 托付：已到期') : t('🛡 托付已设置')),
     el('p', {}, st.released
       ? t('已超过 {0} 天没有报平安，守护人现在可以放行。如果你还在，请立即报平安。', [st.setup.days])
       : t('距离放行还有 {0} 天。上次报平安：{1}，到期日：{2}。', [st.daysLeft, formatDate(st.lastAlive), formatDate(st.releaseAt)])),
-    el('p', { class: 'muted small' }, t('放行条件：{0} 天未报平安 · 门限 {1} / {2} 位守护人 · 继承人指纹 ', [st.setup.days, st.setup.threshold, g]), el('code', {}, st.setup.heir.fingerprint)),
+    el('p', { class: 'muted small' }, t('放行条件：{0} 天未报平安 · 门限 {1} / {2} 位守护人 · 受托人指纹 ', [st.setup.days, st.setup.threshold, g]), el('code', {}, st.setup.heir.fingerprint)),
     isHolder() ? btn : null,
     msg);
 }

@@ -52,7 +52,7 @@ if (!html.includes("connect-src 'none'")) fail('CSP connect-src changed');
 // 不能混进测试或开发代码
 for (const [f, s] of Object.entries(text)) if (/browser-mock|__rpc|secp256k1\.mjs/.test(s)) fail('dev/test code in ' + f);
 // 钱包签名的固定文字必须原样在包里（见 crypto.keyMessage / legacy-store.signText）
-for (const s of ['TapeVault 加密密钥', 'TapeVault 遗产托付：设置', 'TapeVault 遗产托付：报平安']) if (!text['src/app.js'].includes(s)) fail('signed text missing: ' + s);
+for (const s of ['TapeVault 文件夹密钥', 'TapeVault 托付：设置', 'TapeVault 托付：报平安']) if (!text['src/app.js'].includes(s)) fail('signed text missing: ' + s);
 // data-i18n 文案压缩后仍要能在英文词典里找到（键是元素的 innerHTML）
 const { default: EN } = await import('./src/i18n-en.js');
 for (const m of html.matchAll(/<(\w+)[^>]*\sdata-i18n(?:\s[^>]*)?>([\s\S]*?)<\/\1>/g)) {

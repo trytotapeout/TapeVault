@@ -38,20 +38,20 @@ function unhex(h) {
 /** 派生密钥时让钱包签的消息。绑定容器和链，不同文件夹得到不同密钥。 */
 export function keyMessage(container, chainId) {
   return [
-    'TapeVault 加密密钥',
+    'TapeVault 文件夹密钥',
     '',
-    '这次签名只在本机用于生成文件加密密钥，不会发送交易，也不花费 gas。',
-    '只在 TapeVault 页面签署这条消息；其他网站请求签署同样内容时请拒绝。',
+    '这次签名只在本机用于生成这个文件夹的加密密钥，不会发送交易，也不花费 gas。',
+    '签名结果等同于文件夹密钥：只在 TapeVault 页面签署这条消息，其他网站请求签署同样内容时请拒绝。',
     '',
     '容器：' + String(container).toLowerCase(),
     '链：' + chainId,
-    '版本：1',
+    '版本：2',
   ].join('\n');
 }
 
 /**
  * 由签名得到文件夹的 64 字节密钥材料（HKDF 输出）：前 32 字节是主密钥，后 32 字节只用来算 keyCheck。
- * 遗产托付交给继承人的就是这 64 字节，继承人用 keysFromSecret 还原出和持有人完全相同的密钥。
+ * 托付交给受托人的就是这 64 字节，受托人用 keysFromSecret 还原出和持有人完全相同的密钥。
  */
 export async function deriveSecret(signatureHex, container) {
   const sig = unhex(signatureHex);

@@ -1,7 +1,7 @@
-// 继承人 / 守护人页面：不需要持有这枚电路，连接任意钱包只用来读链。
+// 受托人 / 守护人页面：不需要持有这枚电路，连接任意钱包只用来读链。
 //   1. 输入文件夹编号，读取链上的托付记录（签名核对通过的才显示）
-//   2. 守护人：到期后导入私钥，生成交给继承人的碎片
-//   3. 继承人：粘贴碎片、导入私钥，在本机解开文件夹，下载全部文件
+//   2. 守护人：到期后导入私钥，生成交给受托人的碎片
+//   3. 受托人：粘贴碎片、导入私钥，在本机解开文件夹，下载全部文件
 // 私钥和碎片只在当前页面内存里使用，不保存、不上传。
 
 import { $, el, errText, formatSize, formatTime, saveBytes } from './dom.js';
@@ -68,7 +68,7 @@ function renderLookup(error = '', value = '') {
   input,
   el('button', { type: 'submit', class: 'btn primary' }, t('查看')));
   root().replaceChildren(
-    el('h2', {}, t('我是继承人 / 守护人')),
+    el('h2', {}, t('我是受托人 / 守护人')),
     el('p', { class: 'muted' }, t('输入持有人发给你的文件夹编号。连接任意一个 BSC 钱包即可：钱包只用来读取公链上的数据，你不需要持有这枚电路，也不需要余额，这里不会签名，也不会发交易。')),
     form,
     el('p', { class: 'hint', id: 'heir-folder-hint' }, t('编号写在你收到的分发信息里，例如「文件夹：4452.0.tape」，输入 4452.0 即可。')),
@@ -92,7 +92,7 @@ async function load(raw) {
   const listing = await chain.vaultListing(info.container, block);
   const meta = listing.initialized ? await vault.readMeta(chain, info.container, listing, block) : null;
   const [records, now] = await Promise.all([loadLegacy(chain, info.container, listing, block), chain.chainTime(block)]);
-  if (!records.setups.length) throw new Error(t('这个文件夹里没有有效的遗产托付记录'));
+  if (!records.setups.length) throw new Error(t('这个文件夹里没有有效的托付记录'));
   view = { label: folderLabel(parsed.tokenId, parsed.cpu), container: info.container, holder: info.owner, listing, meta, records, now, block };
   keys = null;
   panel = null;
@@ -141,7 +141,7 @@ function renderEntrustment(st, restore) {
       el('dt', {}, t('上次报平安')), el('dd', {}, date(st.lastAlive)),
       el('dt', {}, t('到期时间')), el('dd', {}, t('{0}（{1} 天未报平安）', [date(st.releaseAt), s.days])),
       el('dt', {}, t('门限')), el('dd', {}, t('{0} / {1} 位守护人', [s.threshold, n])),
-      el('dt', {}, t('继承人指纹')), el('dd', {}, el('code', {}, s.heir.fingerprint)),
+      el('dt', {}, t('受托人指纹')), el('dd', {}, el('code', {}, s.heir.fingerprint)),
       ...s.guardians.flatMap((g, i) => [el('dt', {}, t('守护人 {0}', [i + 1])), el('dd', {}, el('code', {}, g.fingerprint))])),
   );
   const guardianBox = el('div', {});
@@ -151,7 +151,7 @@ function renderEntrustment(st, restore) {
   card.append(
     el('div', { class: 'row' },
       el('button', { type: 'button', class: 'btn', on: { click: () => { keys = null; openGuardian(); } } }, t('我是守护人')),
-      el('button', { type: 'button', class: 'btn', on: { click: () => { keys = null; openHeirPanel(); } } }, t('我是继承人'))),
+      el('button', { type: 'button', class: 'btn', on: { click: () => { keys = null; openHeirPanel(); } } }, t('我是受托人'))),
     guardianBox, heirBox);
   // 切换语言后恢复刚才打开的面板
   if (restore && restore.owner === s.owner) {
@@ -184,9 +184,9 @@ function renderGuardian(box, st) {
   const k = keyField('guardian-key', t('你的守护人私钥'));
   const msg = el('p', { class: 'action-msg', role: 'status', 'aria-live': 'polite' });
   const out = el('div', {});
-  const go = el('button', { type: 'button', class: 'btn primary' }, t('生成交给继承人的碎片'));
+  const go = el('button', { type: 'button', class: 'btn primary' }, t('生成交给受托人的碎片'));
   const show = (r) => {
-    msg.textContent = t('你是守护人 {0}。把下面这段碎片发给继承人；碎片只有继承人的私钥能用。', [r.index]);
+    msg.textContent = t('你是守护人 {0}。把下面这段碎片发给受托人；碎片只有受托人的私钥能用。', [r.index]);
     const text = el('textarea', { id: 'guardian-share', class: 'dist-text', readonly: true, rows: 3, spellcheck: 'false' }, r.text);
     const copy = el('button', { type: 'button', class: 'btn small' }, t('复制'));
     copy.addEventListener('click', async () => {
@@ -220,11 +220,11 @@ function renderGuardian(box, st) {
   if (panel?.share) show(panel.share);
 }
 
-// ---------------------------------------------------------------- 3b. 继承人
+// ---------------------------------------------------------------- 3b. 受托人
 
 function renderHeir(box, st) {
   const s = st.setup;
-  const k = keyField('heir-key', t('你的继承人私钥'));
+  const k = keyField('heir-key', t('你的受托人私钥'));
   const sharesArea = el('textarea', { id: 'heir-shares', rows: 4, spellcheck: 'false', autocomplete: 'off', placeholder: 'tvs1:1:…\ntvs1:3:…' });
   const msg = el('p', { class: 'action-msg', role: 'status', 'aria-live': 'polite' });
   const files = el('div', {});
@@ -250,7 +250,7 @@ function renderHeir(box, st) {
     }
   });
   box.replaceChildren(el('div', { class: 'heir-panel' },
-    el('h3', {}, t('继承人解密')),
+    el('h3', {}, t('受托人解密')),
     el('p', { class: 'muted small' }, t('需要至少 {0} 份守护人交来的碎片（tvs1: 开头），加上你自己的私钥。每行一份。', [s.threshold])),
     el('div', { class: 'field' }, el('label', { for: 'heir-shares' }, t('守护人的碎片')), sharesArea),
     k.node, el('div', { class: 'row' }, go), msg, files));
@@ -279,7 +279,7 @@ async function renderFiles(box, msg) {
   });
   box.replaceChildren(
     el('table', { class: 'files' },
-      el('caption', { class: 'sr-only' }, t('继承的文件')),
+      el('caption', { class: 'sr-only' }, t('托付的文件')),
       el('thead', {}, el('tr', {}, el('th', { scope: 'col' }, t('文件名')), el('th', { scope: 'col' }, t('大小')), el('th', { scope: 'col' }, t('上链时间')), el('th', { scope: 'col' }, el('span', { class: 'sr-only' }, t('操作'))))),
       el('tbody', {}, ...rows.map((x) => x.tr))),
     r.locked ? el('p', { class: 'muted small' }, t('{0} 个文件不是用这把密钥加密的（例如电路其他持有人上传的），解不开，未显示。', [r.locked])) : null,

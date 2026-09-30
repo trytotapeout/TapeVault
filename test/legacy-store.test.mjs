@@ -45,7 +45,7 @@ async function setupFixture({ n = 3, m = 2, days = 30 } = {}) {
   return { chain, owner, ownerPriv, sign, secret, heir, guardians, t0, rec };
 }
 
-test('完整流程：设置 → 守护人放行 → 继承人解开，密钥与持有人一致', async () => {
+test('完整流程：设置 → 守护人放行 → 受托人解开，密钥与持有人一致', async () => {
   const f = await setupFixture({ n: 5, m: 3 });
   const recs = await L.loadLegacy(f.chain, C, f.chain.listing());
   assert.equal(recs.setups.length, 1);
@@ -57,7 +57,7 @@ test('完整流程：设置 → 守护人放行 → 继承人解开，密钥与�
   assert.equal(keys.keyCheck, (await keysFromSecret(f.secret)).keyCheck);
 });
 
-test('单靠继承人私钥、碎片不够、私钥不对都解不开', async () => {
+test('单靠受托人私钥、碎片不够、私钥不对都解不开', async () => {
   const f = await setupFixture();
   const { setups: [setup] } = await L.loadLegacy(f.chain, C, f.chain.listing());
   const one = (await L.guardianRelease(setup, f.guardians[1].priv)).text;

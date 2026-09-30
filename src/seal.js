@@ -1,5 +1,5 @@
 import { t } from './i18n.js';
-// 遗产托付用的密码学工具（WebCrypto + 纯 JS，零依赖）。与界面无关，可在 Node 里测试。
+// 托付用的密码学工具（WebCrypto + 纯 JS，零依赖）。与界面无关，可在 Node 里测试。
 //
 // - P-256 公私钥导入：公钥接受 SPKI（PEM / base64）；私钥接受 openssl 默认的 SEC1（EC PRIVATE KEY）和 PKCS#8。
 // - ECIES：临时 ECDH 密钥 + HKDF-SHA256 + AES-256-GCM。格式 0x01 ‖ 临时公钥(65) ‖ IV(12) ‖ 密文+标签。
