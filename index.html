@@ -34,17 +34,19 @@
     <section id="folders-view" hidden>
       <div class="toolbar">
         <h2>我的文件夹</h2>
-        <div class="toolbar-actions">
-          <form id="add-form" class="add-form">
-            <label for="add-input" class="sr-only">手动添加电路</label>
-            <input id="add-input" type="text" placeholder="手动添加，如 4246.0" autocomplete="off" spellcheck="false">
-            <button type="submit" class="btn">添加</button>
-          </form>
-          <button type="button" id="rescan-btn" class="btn">重新扫描</button>
-        </div>
+        <button type="button" id="rescan-btn" class="btn">重新扫描</button>
       </div>
       <p id="status" class="status" role="status" aria-live="polite"></p>
       <ul id="folder-list" class="folder-list"></ul>
+      <details id="add-panel" class="add-panel">
+        <summary>找不到某枚电路？手动添加</summary>
+        <p class="muted">自动扫描会跳过编号过多的处理器。输入电路编号即可加入列表，添加前会在链上核对是否属于当前钱包。</p>
+        <form id="add-form" class="add-form">
+          <label for="add-input" class="sr-only">电路编号</label>
+          <input id="add-input" type="text" placeholder="如 4246.0" autocomplete="off" spellcheck="false">
+          <button type="submit" class="btn">添加</button>
+        </form>
+      </details>
     </section>
 
     <section id="folder-detail" class="panel" hidden>

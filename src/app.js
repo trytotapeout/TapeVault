@@ -139,7 +139,8 @@ async function loadFolders(full) {
     state.folders = folders;
     saveCache(localStorage, account, folders);
     renderFolders();
-    const tail = skipped.length ? `；另有 ${skipped.map((s) => `处理器 ${s.cpu}`).join('、')} 编号过多未自动扫描，可手动添加` : '';
+    const tail = skipped.length ? `；另有 ${skipped.map((s) => `处理器 ${s.cpu}`).join('、')} 编号过多未自动扫描，可在下方手动添加` : '';
+    if (skipped.length) $('add-panel').open = true;
     setStatus(folders.length ? `共 ${folders.length} 个文件夹${tail}` : `这个钱包在 BNB Chain 上没有 TapeOut 电路${tail}`, skipped.length ? 'warn' : '');
   } catch (e) {
     setStatus('读取失败：' + errText(e), 'error');

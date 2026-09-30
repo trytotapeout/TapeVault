@@ -68,7 +68,10 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .toolbar h2 { margin: 0; }
-.toolbar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.add-panel { margin-top: 20px; font-size: 14px; }
+.add-panel summary { color: var(--muted); cursor: pointer; width: max-content; }
+.add-panel summary:hover { color: var(--text); }
+.add-panel p { margin: 8px 0; }
 .add-form { display: flex; gap: 6px; }
 .add-form input {
   font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
