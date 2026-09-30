@@ -70,6 +70,16 @@
         <button type="button" id="legacy-close" class="btn link" aria-label="关闭">✕</button>
       </div>
       <p class="notice legacy-intro">这个功能是测试功能。我们想寻求一种不依赖任何人的、去中心化的文件夹密钥释放机制，目前还在探索中。</p>
+      <section class="legacy-scheme" aria-labelledby="legacy-scheme-title">
+        <h3 id="legacy-scheme-title">目前的方案：继承人密钥 + 守护人密钥</h3>
+        <ul class="plain">
+          <li><strong>准备继承人密钥</strong>：继承人在线下自己生成一对 P-256 密钥，只把公钥交给你，私钥由他离线保管。</li>
+          <li><strong>准备守护人密钥</strong>：每位守护人（如律师、亲友）同样在线下各自生成密钥对，只把公钥交给你。</li>
+          <li><strong>加密</strong>：文件夹主密钥先用继承人公钥加密，再用一把外锁密钥加密。外锁密钥拆成碎片，每份用一位守护人的公钥加密后存上链。</li>
+          <li><strong>放行</strong>：你超过设定天数没有报平安，守护人各自解开碎片交给继承人。继承人凑够门限数量的碎片，加上自己的私钥，才能解开文件夹。只靠其中任何一方都解不开。</li>
+        </ul>
+        <p class="hint">生成密钥对：<code>openssl ecparam -name prime256v1 -genkey -noout -out key.pem</code>，再用 <code>openssl ec -in key.pem -pubout</code> 导出公钥。</p>
+      </section>
       <div id="legacy-body"></div>
     </dialog>
 
@@ -117,7 +127,7 @@
       作者：<code id="x-handle">x.com/boostbob</code>
       <button type="button" id="copy-x" class="btn link small" aria-describedby="x-handle">复制</button>
     </p>
-    <p>TapeVault v0.4.3 · 文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</p>
+    <p>TapeVault v0.4.4 · 文件目录 <code>_tapevault/</code> · 数据存于 TapeOut SiteRegistry</p>
   </footer>
 
   <script type="module" src="src/app.js"></script>

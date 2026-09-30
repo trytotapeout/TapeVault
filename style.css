@@ -110,6 +110,10 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 .modal p { margin: 14px 0 0; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .modal .legacy-intro { margin: 0 0 4px; font-size: 14px; }
+.legacy-scheme { margin-top: 12px; font-size: 14px; }
+.modal .legacy-scheme h3 { margin: 0 0 6px; font-size: 15px; }
+.legacy-scheme .plain { margin-bottom: 6px; }
+.legacy-scheme .plain strong { color: var(--text); }
 .modal.wide { width: min(640px, calc(100% - 32px)); max-height: calc(100vh - 48px); }
 
 .legacy-form fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px 14px; margin: 14px 0 0; }
