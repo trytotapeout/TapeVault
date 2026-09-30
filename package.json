@@ -1,13 +1,18 @@
 {
   "name": "tapevault",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "private": true,
   "description": "Encrypted on-chain file vault built on TapeOut circuit containers (DeWEB, no backend).",
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "check": "for f in src/*.js test/*.mjs; do node --check \"$f\" || exit 1; done",
-    "live": "node test/live.mjs"
+    "check": "for f in src/*.js test/*.mjs build.mjs; do node --check \"$f\" || exit 1; done",
+    "live": "node test/live.mjs",
+    "build": "node build.mjs",
+    "preview": "npm run -s build && node dev-server.mjs 5178 --dist"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
 }

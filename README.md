@@ -5,7 +5,7 @@
 - 无后端、无数据库、无外部脚本；页面 CSP 为 `connect-src 'none'`，读链全部经由用户钱包（EIP-1193 / EIP-6963）。
 - 网盘文件只放在容器的 `_tapevault/` 目录下，容器里的其他文件（如 DeWEB 网站）不读不写。
 
-## 当前进度（v0.7.0）
+## 当前进度（v0.7.1）
 
 - 连接钱包，自动扫描持有的电路（每枚电路 = 一个文件夹），也可手动添加
 - 初始化保险箱：钱包签名 2 次核对签名确定性，写入明文 `_tapevault/_meta.json`（只含格式版本和 keyCheck）
@@ -68,9 +68,21 @@ npm run live [地址]    # 主网只读冒烟测试（含 ecrecover 与链上时
 # 浏览器里的模拟钱包（内存模拟 SiteRegistry，不发真实交易）：
 #   const m = await import('/test/browser-mock.js'); m.install('0x…')
 #   m.timeSkew.value = 8 * 86400   // 把链上时间往后拨，测试遗产到期
-node dev-server.mjs    # 本地预览 http://127.0.0.1:5178/
+node dev-server.mjs    # 本地预览 http://127.0.0.1:5178/（直接用源码）
 ```
+
+## 发布到 DeWEB
+
+```bash
+npm install            # 只需要一次：安装 esbuild（固定版本，只在构建时用）
+npm run build          # 打包压缩到 dist/，并做自检
+npm run preview        # 构建后用 dist/ 起本地预览，发布前走一遍
+```
+
+`dist/` 里的 4 个文件就是要上传到容器的全部内容，路径保持不变：`index.html`、`style.css`、`src/theme.js`、`src/app.js`。上传时 content type 分别是 `text/html`、`text/css`、`text/javascript`、`text/javascript`。
+
+构建会检查：页面引用的文件都在、CSP 仍是 `connect-src 'none'`、没有混进测试或开发代码、钱包签名的固定文字原样保留、压缩后的 `data-i18n` 文案仍能对上英文词典、页脚版本号与 `package.json` 一致。构建输出每个文件的 SHA-256，可以和链上 `fileInfo` 核对。
 
 钱包签名的文字（`crypto.keyMessage`、`legacy-store.signText`）永远是固定中文，不随界面语言变化：改动会让已有文件夹派生不出原密钥、已有托付记录核对不过签名。`test/i18n.test.mjs` 会检查每条 `t('…')` 都有英文且占位符一致。
 
-`dev-server.mjs` 只用于本地开发，发布上链时不要上传它和 `test/`。
+`dev-server.mjs` 和 `test/` 只用于本地开发，不在 `dist/` 里。更新网站时不要动容器里的 `_tapevault/` 目录。
