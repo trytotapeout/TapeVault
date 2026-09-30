@@ -67,6 +67,7 @@ function renderForm(errors = []) {
 
     el('fieldset', {},
       el('legend', {}, '2. 继承人'),
+      el('p', { class: 'muted small' }, '只靠继承人的私钥无法解密。继承人还需要拿到足够数量守护人交出的钥匙碎片，两者合在一起才能解开文件。'),
       personFields('lg-heir', d.heir, '继承人'),
     ),
 
@@ -203,6 +204,7 @@ function renderResult(heir, guardians) {
     '守护人：', ...guardianList,
     '',
     `放行条件：${rule}`,
+    `只靠你的私钥无法解密，还需要至少 ${d.threshold} 位守护人交出的钥匙碎片。`,
     `放行后：收集至少 ${d.threshold} 份碎片，在 TapeVault 打开这个文件夹，导入你的私钥即可解密全部文件。`,
     '请离线妥善保管你的私钥。私钥丢失将无法继承，私钥被盗可能导致提前泄露。',
   ].join('\n');
