@@ -5,6 +5,7 @@
 import { encodeCall, decodeResult, decodeAggregate3, hexToBytes } from './abi.js';
 import { BSC, SEL, MULTICALL_BATCH, PATHS_PAGE, VAULT_PREFIX, VAULT_META, CHUNK_SIZE, MAX_FILE_BYTES, READ_RANGE } from './config.js';
 import { sha256Hex } from './crypto.js';
+import { keccak256 } from './keccak.js';
 
 const lower = (a) => String(a).toLowerCase();
 
@@ -204,7 +205,27 @@ export function createChain(rpc, net = BSC) {
     return out;
   }
 
-  return { pinBlock, multicall, cpuCount, cpuList, holdings, maxTokenId, ownedIds, circuitInfos, allPaths, fileInfos, vaultListing, gasPrice, readRange, readHeads, readVerified };
+  /**
+   * 核对 personal_sign 签名：用 ecrecover 预编译合约（地址 0x01）恢复签名人。
+   * 经由 eth_call 在节点上算，页面不必带椭圆曲线库。签名无效时返回 null。
+   */
+  async function recoverSigner(text, signatureHex) {
+    const sig = hexToBytes(signatureHex);
+    if (sig.length !== 65) return null;
+    let v = sig[64];
+    if (v < 27) v += 27;
+    if (v !== 27 && v !== 28) return null;
+    const msg = new TextEncoder().encode(text);
+    const digest = keccak256(new Uint8Array([...new TextEncoder().encode('\x19Ethereum Signed Message:\n' + msg.length), ...msg]));
+    const hex = (b) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+    const data = '0x' + hex(digest) + v.toString(16).padStart(64, '0') + hex(sig.subarray(0, 32)) + hex(sig.subarray(32, 64));
+    const out = await call('0x0000000000000000000000000000000000000001', data);
+    if (!out || out === '0x' || out.length < 66) return null;
+    const addr = '0x' + out.slice(-40).toLowerCase();
+    return /^0x0{40}$/.test(addr) ? null : addr;
+  }
+
+  return { pinBlock, multicall, recoverSigner, cpuCount, cpuList, holdings, maxTokenId, ownedIds, circuitInfos, allPaths, fileInfos, vaultListing, gasPrice, readRange, readHeads, readVerified };
 }
 
 // ---------------------------------------------------------------- 写入（生成交易，不签名、不发送）

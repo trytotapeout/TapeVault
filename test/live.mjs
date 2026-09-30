@@ -24,3 +24,17 @@ for (const f of folders) {
   console.log(`  ${f.label}  container=${f.container} opened=${f.opened} cpu="${f.cpuName}"`
     + (v ? ` vault=${v.initialized ? 'yes' : 'no'} vaultFiles=${v.files.length} otherFiles=${v.otherFileCount}` : ''));
 }
+
+// ecrecover 预编译：随机私钥签一条消息，节点恢复出的地址应与私钥地址一致
+{
+  const { personalSign, addressOf, randomPriv } = await import('./secp256k1.mjs');
+  const priv = randomPriv();
+  const text = 'TapeVault ecrecover self-test ' + Date.now();
+  const sig = personalSign(priv, text);
+  const got = await chain.recoverSigner(text, sig);
+  const want = addressOf(priv);
+  console.log(`ecrecover: ${got === want ? 'ok' : 'MISMATCH'} (${want})`);
+  if (got !== want) process.exitCode = 1;
+  const bad = await chain.recoverSigner(text + 'x', sig);
+  console.log(`ecrecover tampered: ${bad !== want ? 'ok' : 'MISMATCH'}`);
+}

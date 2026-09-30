@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { encodeCall, decodeResult, decodeAggregate3, hexToBytes, bytesToHex } from '../src/abi.js';
 import { SIG, SEL } from '../src/config.js';
 import { parseFolderInput, folderLabel, loadCache, saveCache } from '../src/folders.js';
-import { keccakHex } from './keccak.mjs';
+import { keccakHex } from '../src/keccak.js';
 
 test('selectors match keccak256 of signatures', () => {
   for (const k of Object.keys(SIG)) {

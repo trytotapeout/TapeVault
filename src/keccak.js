@@ -1,6 +1,6 @@
-// 来自 TapeOutProtocol/TapeKit kernel/src/keccak.js（MIT），仅测试用：重算函数选择器。
+// 来自 TapeOutProtocol/TapeKit kernel/src/keccak.js（MIT）。
 // Keccak-256（以太坊用的原版 Keccak，填充 0x01，不是 SHA3-256 的 0x06）。
-// 只用于短输入：函数选择器自检、链上名字哈希、地址校验和。没有依赖，BigInt 实现，不追求速度。
+// 只用于短输入：签名消息哈希、函数选择器自检、地址校验和。没有依赖，BigInt 实现，不追求速度。
 
 const MASK = (1n << 64n) - 1n;
 const RC = [
