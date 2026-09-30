@@ -123,7 +123,7 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 }
 .field textarea, .dist-text { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; resize: vertical; }
 .field select { width: auto; }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.field input[type=number] { width: 140px; }
 .hint { margin: 0; color: var(--muted); font-size: 12.5px; }
 .inline { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .guardian { border-top: 1px dashed var(--line); margin-top: 12px; padding-top: 10px; }
@@ -138,7 +138,6 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 .modal h3 { margin-top: 18px; }
 .dist-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin-top: 10px; background: var(--panel-2); }
 .dist-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-@media (max-width: 600px) { .field-row { grid-template-columns: 1fr; } }
 .detail-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 12px; }
 .detail-head h2 { margin: 0; }
 .legacy-btn {

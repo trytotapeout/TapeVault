@@ -17,7 +17,7 @@ const body = () => $('legacy-body');
 export function openLegacy(folder, account) {
   ctx = { folder, account };
   draft = {
-    checkinDays: 180, noticeDays: 30, threshold: 2,
+    checkinDays: 180, threshold: 2,
     heir: emptyPerson(),
     guardians: [emptyPerson(), emptyPerson(), emptyPerson()],
     ack: false,
@@ -62,10 +62,7 @@ function renderForm(errors = []) {
 
     el('fieldset', {},
       el('legend', {}, '1. 触发条件'),
-      el('div', { class: 'field-row' },
-        numberField('lg-checkin', '报平安期限（天）', d.checkinDays, '超过这么多天没有报平安，进入公示期'),
-        numberField('lg-notice', '公示期（天）', d.noticeDays, '公示期内报一次平安即可取消公示'),
-      ),
+      numberField('lg-checkin', '多少天没有报平安后放行（天）', d.checkinDays, '从最后一次报平安算起，超过这么多天，守护人即可放行'),
     ),
 
     el('fieldset', {},
@@ -136,7 +133,6 @@ function personFields(id, p, who) {
 function readForm() {
   const d = draft;
   d.checkinDays = Number($('lg-checkin').value);
-  d.noticeDays = Number($('lg-notice').value);
   d.threshold = Number($('lg-threshold').value);
   d.ack = $('lg-ack').checked;
   const read = (id) => ({ name: $(id + '-name').value.trim(), key: $(id + '-key').value.trim() });
@@ -150,8 +146,7 @@ async function onSubmit(ev) {
   const d = draft;
   const errors = [];
   const days = (v, what) => { if (!Number.isInteger(v) || v < MIN_DAYS) errors.push(`${what}至少 ${MIN_DAYS} 天（整数）`); };
-  days(d.checkinDays, '报平安期限');
-  days(d.noticeDays, '公示期');
+  days(d.checkinDays, '放行天数');
 
   const people = [{ role: '继承人', ...d.heir }, ...d.guardians.map((g, i) => ({ role: `守护人 ${i + 1}`, ...g }))];
   for (const p of people) {
@@ -178,13 +173,12 @@ function renderResult(heir, guardians) {
   const d = draft;
   const f = ctx.folder;
   const n = guardians.length;
-  const rule = `你 ${d.checkinDays} 天没有报平安后进入公示期；公示期 ${d.noticeDays} 天结束时仍未报平安，守护人即可放行。`;
+  const rule = `从你最后一次报平安算起，超过 ${d.checkinDays} 天没有再报平安，守护人即可放行。`;
 
   const record = {
     app: 'tapevault', type: 'legacy', v: 1,
     owner: ctx.account,
     checkinDays: d.checkinDays,
-    noticeDays: d.noticeDays,
     threshold: d.threshold,
     heir: { fingerprint: heir.fingerprint },
     guardians: guardians.map((g) => ({ fingerprint: g.fingerprint })),
@@ -229,7 +223,7 @@ function renderResult(heir, guardians) {
     el('p', { class: 'notice' }, '这是预览：还没有做任何加密，也不会写入链上。'),
     el('dl', { class: 'meta compact' },
       el('dt', {}, '文件夹'), el('dd', {}, f.label),
-      el('dt', {}, '触发条件'), el('dd', {}, `${d.checkinDays} 天未报平安 → 公示 ${d.noticeDays} 天`),
+      el('dt', {}, '触发条件'), el('dd', {}, `${d.checkinDays} 天未报平安即放行`),
       el('dt', {}, '放行门限'), el('dd', {}, `${d.threshold} / ${n} 位守护人`),
       el('dt', {}, '继承人'), el('dd', {}, `${heir.name} · `, el('code', {}, heir.fingerprint)),
     ),
