@@ -48,10 +48,14 @@
       <p class="fineprint">请保管好你的钱包：解密只认这个钱包的签名，钱包丢失后没有任何人能帮你找回文件。页面本身不发出网络请求，读链全部经由你的钱包节点完成。</p>
     </section>
 
-    <div id="wallet-picker" class="panel" hidden>
-      <h2>选择钱包</h2>
+    <dialog id="wallet-picker" class="modal" aria-labelledby="wallet-picker-title">
+      <div class="modal-head">
+        <h2 id="wallet-picker-title">选择钱包</h2>
+        <button type="button" id="wallet-picker-close" class="btn link" aria-label="关闭">✕</button>
+      </div>
       <ul id="wallet-list" class="wallet-list"></ul>
-    </div>
+      <p class="muted small">请选择支持 BNB Chain 的钱包。连接后会请求切换到 BNB Smart Chain。</p>
+    </dialog>
 
     <section id="folders-view" hidden>
       <div class="toolbar">

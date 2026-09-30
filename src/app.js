@@ -23,7 +23,8 @@ async function onConnectClick() {
   list.replaceChildren(...wallets.map((w) => el('li', {},
     el('button', { type: 'button', class: 'btn wallet-option', on: { click: () => useWallet(w) } },
       safeIcon(w.icon), w.name))));
-  $('wallet-picker').hidden = false;
+  $('wallet-picker').showModal();
+  list.querySelector('button')?.focus();
 }
 
 /** 只接受 data:image 图标，防止钱包公告里塞外链 */
@@ -40,7 +41,7 @@ function showIntroMessage(msg) {
 }
 
 async function useWallet(w) {
-  $('wallet-picker').hidden = true;
+  if ($('wallet-picker').open) $('wallet-picker').close();
   try {
     const account = await connect(w.provider);
     state.provider = w.provider;
@@ -190,6 +191,9 @@ function closeDetail() {
 
 $('connect-btn').addEventListener('click', onConnectClick);
 $('hero-connect').addEventListener('click', onConnectClick);
+$('wallet-picker-close').addEventListener('click', () => $('wallet-picker').close());
+// 点遮罩关闭（点击落在 dialog 自身而不是里面的内容上）
+$('wallet-picker').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $('copy-donate').addEventListener('click', async () => {
   const btn = $('copy-donate');
   let ok = false;
