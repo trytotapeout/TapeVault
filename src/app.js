@@ -33,9 +33,9 @@ function safeIcon(src) {
 }
 
 function showIntroMessage(msg) {
-  const intro = $('intro');
-  let p = intro.querySelector('.intro-error');
-  if (!p) { p = el('p', { class: 'intro-error', role: 'alert' }); intro.append(p); }
+  const hero = document.querySelector('#intro .hero');
+  let p = hero.querySelector('.intro-error');
+  if (!p) { p = el('p', { class: 'intro-error', role: 'alert' }); hero.append(p); }
   p.textContent = msg;
 }
 
@@ -189,6 +189,7 @@ function closeDetail() {
 // ---------------------------------------------------------------- 启动
 
 $('connect-btn').addEventListener('click', onConnectClick);
+$('hero-connect').addEventListener('click', onConnectClick);
 $('rescan-btn').addEventListener('click', () => loadFolders(true));
 $('add-form').addEventListener('submit', onAddSubmit);
 $('back-btn').addEventListener('click', closeDetail);
