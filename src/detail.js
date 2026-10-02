@@ -23,7 +23,15 @@ const cacheKey = () => lower(s.ctx.account) + ':' + lower(s.folder.container);
 export function forgetKeys() {
   keyCache.clear();
   pending = null;
+  notes.clear();
 }
+
+// 手写文字的草稿：按容器放在内存里（不写 localStorage，明文不落盘），上传成功或断开钱包时清掉。
+// 有没上传的草稿时关闭 / 刷新页面先提醒
+const notes = new Map();
+window.addEventListener('beforeunload', (e) => {
+  for (const n of notes.values()) if (n.text.trim()) return warnUnload(e);
+});
 
 /** ctx = {provider, account, chain}；由 app.js 在打开文件夹时传入 */
 export async function openFolder(ctx, f) {
@@ -267,35 +275,92 @@ function renderUpload() {
     input, pick,
     el('p', { class: 'muted small' }, t('或把文件拖到这里 · 单个文件最大 {0} · 每 24 KB 一笔交易', [MAX_UPLOAD_LABEL])));
   const confirmBox = el('div', { class: 'confirm-box', hidden: true });
+  const fail = (text) => { msg.dataset.kind = 'error'; msg.textContent = text; };
 
-  const onFile = async (file) => {
-    if (!file || s.busy) return;
+  /** 文件和手写文字共用：检查 → 本机加密 → 显示确认框。item = {name, type, mtime, size, read(), note} */
+  const prepare = async (item) => {
+    if (s.busy) return;
     msg.dataset.kind = '';
     confirmBox.hidden = true;
-    if (!isHolder()) { msg.dataset.kind = 'error'; msg.textContent = t('当前钱包不是这枚电路的持有人，不能上传。'); return; }
-    if (file.size > MAX_UPLOAD_BYTES) { msg.dataset.kind = 'error'; msg.textContent = t('文件太大（{0}），单个文件最大 {1}。', [formatSize(file.size), MAX_UPLOAD_LABEL]); return; }
-    if (!file.size) { msg.dataset.kind = 'error'; msg.textContent = t('不能上传空文件。'); return; }
+    if (!isHolder()) return fail(t('当前钱包不是这枚电路的持有人，不能上传。'));
+    if (item.size > MAX_UPLOAD_BYTES) return fail(t('文件太大（{0}），单个文件最大 {1}。', [formatSize(item.size), MAX_UPLOAD_LABEL]));
+    if (!item.size) return fail(item.note ? t('请先写点内容。') : t('不能上传空文件。'));
     try {
       msg.textContent = t('正在本机加密…');
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const up = await vault.prepareUpload(s.keys, s.folder.container, { name: file.name, type: file.type, mtime: Math.floor(file.lastModified / 1000), bytes });
+      const up = await vault.prepareUpload(s.keys, s.folder.container, { name: item.name, type: item.type, mtime: item.mtime, bytes: await item.read() });
       const gas = vault.estimateGas(up.blob.length, up.txs.length);
       const price = await s.ctx.chain.gasPrice();
-      const replaces = s.entries.some((e) => e.name === file.name.normalize('NFC').trim());
+      const name = vault.normalizeName(item.name);
+      const replaces = s.entries.some((e) => e.name === name);
       msg.textContent = '';
-      showConfirm(confirmBox, msg, { ...up, name: file.name, size: file.size, next: 0 }, gas * price, replaces);
+      showConfirm(confirmBox, msg, { ...up, name, size: item.size, note: !!item.note, next: 0 }, gas * price, replaces);
     } catch (e) {
-      msg.dataset.kind = 'error';
-      msg.textContent = errText(e);
+      fail(errText(e));
     }
   };
+  const onFile = (file) => file && prepare({
+    name: file.name, type: file.type, mtime: Math.floor(file.lastModified / 1000), size: file.size,
+    read: async () => new Uint8Array(await file.arrayBuffer()),
+  });
   input.addEventListener('change', () => { onFile(input.files[0]); input.value = ''; });
   zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('over'); });
   zone.addEventListener('dragleave', () => zone.classList.remove('over'));
   zone.addEventListener('drop', (e) => { e.preventDefault(); zone.classList.remove('over'); onFile(e.dataTransfer.files[0]); });
 
-  const box = el('section', { class: 'upload', 'aria-label': t('上传文件') }, zone, confirmBox, msg);
+  const box = el('section', { class: 'upload', 'aria-label': t('上传文件') }, zone, renderNote(prepare, fail), confirmBox, msg);
   if (pending && pending.container === s.folder.container) showResume(confirmBox, msg);
+  return box;
+}
+
+/** 手写文字：本机转成 UTF-8 后和普通文件一样加密上传，存成 .txt 或 .md */
+function renderNote(prepare, fail) {
+  const c = s.folder.container;
+  const draft = notes.get(c) || { text: '', name: '', ext: 'txt', open: false };
+  const today = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const fallback = t('笔记') + '-' + today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+  const enc = new TextEncoder();
+  // 关掉拼写检查和自动填充：Chrome 增强拼写检查会把输入内容发给 Google，CSP 拦不住浏览器自己的请求
+  const off = { spellcheck: 'false', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off' };
+  const area = el('textarea', { id: 'note-text', rows: 8, ...off });
+  const name = el('input', { id: 'note-name', type: 'text', placeholder: fallback, ...off });
+  const ext = el('select', { id: 'note-ext', 'aria-label': t('格式') },
+    el('option', { value: 'txt' }, '.txt'), el('option', { value: 'md' }, '.md'));
+  const size = el('span', { class: 'hint', 'aria-live': 'polite' });
+  const go = el('button', { type: 'button', class: 'btn primary' }, t('加密上传'));
+  area.value = draft.text;
+  name.value = draft.name;
+  ext.value = draft.ext;
+
+  const save = () => {
+    Object.assign(draft, { text: area.value, name: name.value, ext: ext.value });
+    if (draft.text || draft.name) notes.set(c, draft);
+    else notes.delete(c);
+    size.textContent = draft.text ? t('{0} / 最大 {1}', [formatSize(enc.encode(draft.text).length), MAX_UPLOAD_LABEL]) : '';
+  };
+  area.addEventListener('input', save);
+  name.addEventListener('input', save);
+  ext.addEventListener('change', save);
+  save();
+
+  go.addEventListener('click', () => {
+    let file;
+    try { file = vault.noteFileName(name.value, ext.value, fallback); } catch (e) { return fail(errText(e)); }
+    // 只有空白也算没写内容
+    const bytes = area.value.trim() ? enc.encode(area.value) : new Uint8Array(0);
+    prepare({ name: file, type: vault.NOTE_TYPES[ext.value], mtime: Math.floor(Date.now() / 1000), size: bytes.length, read: () => bytes, note: true });
+  });
+
+  const box = el('details', { class: 'note-panel' },
+    el('summary', {}, t('或者直接写一段文字，存成文件')),
+    el('div', { class: 'field' }, el('label', { for: 'note-text' }, t('内容')), area),
+    el('div', { class: 'note-row' },
+      el('div', { class: 'field' }, el('label', { for: 'note-name' }, t('文件名')), name),
+      el('div', { class: 'field' }, el('label', { for: 'note-ext' }, t('格式')), ext)),
+    el('p', { class: 'hint' }, t('内容只在本机加密后上链。草稿只留在当前页面内存里，刷新或关闭页面会丢失。'), ' ', size),
+    el('div', { class: 'row' }, go));
+  box.open = draft.open || !!draft.text;
+  box.addEventListener('toggle', () => { draft.open = box.open; if (box.open) notes.set(c, draft); });
   return box;
 }
 
@@ -346,6 +411,7 @@ async function runUpload(btn, msg, up) {
       window.removeEventListener('beforeunload', warnUnload);
     }
     pending = null;
+    if (up.note) notes.delete(up.container);
     await refresh();
   });
   if (pending) {

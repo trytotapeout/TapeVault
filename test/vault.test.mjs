@@ -168,3 +168,14 @@ test('upload limits and name normalization', async () => {
   assert.throws(() => vault.normalizeName('  '), /不能为空/);
   await assert.rejects(vault.prepareUpload(keys, CONTAINER, { name: 'x'.repeat(700), bytes: new Uint8Array(1) }), /太长/);
 });
+
+test('手写文字的文件名：补 / 换扩展名，空名用默认名', () => {
+  assert.equal(vault.noteFileName('日记', 'txt', '笔记-2026-10-02'), '日记.txt');
+  assert.equal(vault.noteFileName('日记.TXT', 'md', 'x'), '日记.md');
+  assert.equal(vault.noteFileName('readme.md', 'md', 'x'), 'readme.md');
+  assert.equal(vault.noteFileName('a.json', 'txt', 'x'), 'a.json.txt');
+  assert.equal(vault.noteFileName('  ', 'txt', '笔记-2026-10-02'), '笔记-2026-10-02.txt');
+  assert.equal(vault.noteFileName('.md', 'md', '笔记'), '笔记.md');
+  assert.throws(() => vault.noteFileName('a', 'html', 'x'), /不支持/);
+  assert.equal(vault.NOTE_TYPES.md, 'text/markdown;charset=utf-8');
+});

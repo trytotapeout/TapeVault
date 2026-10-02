@@ -274,6 +274,14 @@ label.btn { display: inline-block; }
 .drop-zone.over { border-color: var(--accent-text); background: var(--highlight); }
 .drop-zone p { margin: 10px 0 0; }
 .drop-zone:focus-within { border-color: var(--accent); }
+/* 手写文字 */
+.note-panel { margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 16px; }
+.note-panel summary { cursor: pointer; font-size: 14px; color: var(--accent-text); }
+.note-panel[open] summary { margin-bottom: 4px; }
+.note-panel textarea { min-height: 160px; font-family: inherit; font-size: 14px; line-height: 1.6; }
+.note-row { display: flex; gap: 12px; align-items: end; }
+.note-row .field:first-child { flex: 1; }
+.note-panel .hint { margin: 8px 0 10px; }
 .confirm-box { margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; background: var(--panel-2); }
 .confirm-box p { margin: 0 0 10px; }
 .meta.compact { margin-bottom: 10px; font-size: 14px; }

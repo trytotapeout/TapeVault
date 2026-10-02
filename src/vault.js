@@ -114,6 +114,16 @@ export function normalizeName(name) {
   return n;
 }
 
+// 手写文字只能存成这两种格式
+export const NOTE_TYPES = { txt: 'text/plain;charset=utf-8', md: 'text/markdown;charset=utf-8' };
+
+/** 手写文字的文件名：空名用默认名；扩展名不是所选格式时换成所选格式（.txt / .md） */
+export function noteFileName(name, ext, fallback) {
+  if (!Object.hasOwn(NOTE_TYPES, ext)) throw new Error(t('不支持的格式'));
+  const base = (s) => String(s || '').normalize('NFC').trim().replace(/\.(txt|md)$/i, '').trim();
+  return normalizeName((base(name) || base(fallback)) + '.' + ext);
+}
+
 /** 加密并切块。返回 {fileId, path, blob, sha256, txs} */
 export async function prepareUpload(keys, container, { name, type, mtime, bytes }) {
   if (bytes.length > MAX_UPLOAD_BYTES) throw new Error(t('单个文件最大 {0}', [MAX_UPLOAD_LABEL]));
