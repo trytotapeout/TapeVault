@@ -11,7 +11,7 @@
     "build": "node build.mjs",
     "preview": "npm run -s build && node dev-server.mjs 5178 --dist"
   },
-  "license": "GPL-3.0-only",
+  "license": "GPL-3.0-or-later",
   "devDependencies": {
     "esbuild": "0.28.2"
   }

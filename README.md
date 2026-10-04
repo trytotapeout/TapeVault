@@ -117,4 +117,4 @@ git rebase --signoff origin/main && git push --force-with-lease
 
 ## 开源协议
 
-[GPL-3.0](LICENSE)。可以自由使用、修改和再分发；分发修改后的版本时，须以 GPL-3.0 公开完整源码。
+[GPL-3.0-or-later](LICENSE)：GNU GPL 第 3 版或（按你的选择）任何更新的版本。可以自由使用、修改和再分发；分发修改后的版本时，须以同样的协议公开完整源码。
