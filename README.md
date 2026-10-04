@@ -90,3 +90,17 @@ npm run preview        # 构建后用 dist/ 起本地预览，发布前走一遍
 钱包签名的文字（`crypto.keyMessage`、`legacy-store.signText`）永远是固定中文，不随界面语言变化：改动会让已有文件夹派生不出原密钥、已有托付记录核对不过签名。v0.7.2 在正式使用前最后一次改了这些文字（「TapeVault 文件夹密钥」版本 2、「TapeVault 托付：设置 / 报平安」），之前的测试文件夹和托付记录不再能解开；此后不再改动。`test/i18n.test.mjs` 会检查每条 `t('…')` 都有英文且占位符一致。
 
 `dev-server.mjs` 和 `test/` 只用于本地开发，不在 `dist/` 里。更新网站时不要动容器里的 `_tapevault/` 目录。
+
+## 参与共建
+
+欢迎提 Issue 和 PR，一起把 TapeVault 做好。比起各自 fork 出独立分支，更希望改进能合回主仓库，让所有用户都用上。
+
+- 仓库：[github.com/trytotapeout/TapeVault](https://github.com/trytotapeout/TapeVault)
+- 提 PR 前请跑 `npm run -s check`、`npm test`、`npm run -s build`，全部通过再提交；改动界面文案时同步更新 `src/i18n-en.js`
+- 以下内容属于存储协议，改动会让已有用户的文件夹解不开，请不要修改：钱包签名的固定文字（`crypto.keyMessage`、`legacy-store.signText`）、`_tapevault/` 目录结构、HKDF 参数、TVF1 文件格式
+- 页面 CSP 保持 `connect-src 'none'`，不引入外部脚本和网络请求
+- 大的改动（新功能、格式变化）建议先开 Issue 讨论
+
+## 开源协议
+
+[GPL-3.0](LICENSE)。可以自由使用、修改和再分发；分发修改后的版本时，须以 GPL-3.0 公开完整源码。
