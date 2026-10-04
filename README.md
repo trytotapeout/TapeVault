@@ -101,6 +101,20 @@ npm run preview        # 构建后用 dist/ 起本地预览，发布前走一遍
 - 页面 CSP 保持 `connect-src 'none'`，不引入外部脚本和网络请求
 - 大的改动（新功能、格式变化）建议先开 Issue 讨论
 
+### DCO 签名
+
+提交须遵守 [Developer Certificate of Origin](DCO)：每个提交都要带 `Signed-off-by` 行，表示你有权以本项目的开源协议提交这些代码。提交时加 `-s` 即可：
+
+```bash
+git commit -s -m "feat: ..."
+```
+
+`Signed-off-by` 的邮箱须与提交作者邮箱一致（即 `git config user.email`）。PR 会自动检查（`.github/workflows/dco.yml`），漏签的提交可以这样补上：
+
+```bash
+git rebase --signoff origin/main && git push --force-with-lease
+```
+
 ## 开源协议
 
 [GPL-3.0](LICENSE)。可以自由使用、修改和再分发；分发修改后的版本时，须以 GPL-3.0 公开完整源码。
