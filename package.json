@@ -9,6 +9,7 @@
     "check": "for f in src/*.js test/*.mjs build.mjs; do node --check \"$f\" || exit 1; done",
     "live": "node test/live.mjs",
     "build": "node build.mjs",
+    "pages": "npm run -s build && rm -rf github_pages && cp -R dist github_pages",
     "preview": "npm run -s build && node dev-server.mjs 5178 --dist"
   },
   "license": "GPL-3.0-or-later",

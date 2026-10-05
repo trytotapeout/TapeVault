@@ -89,6 +89,16 @@ npm run preview        # 构建后用 dist/ 起本地预览，发布前走一遍
 
 钱包签名的文字（`crypto.keyMessage`、`legacy-store.signText`）永远是固定中文，不随界面语言变化：改动会让已有文件夹派生不出原密钥、已有托付记录核对不过签名。v0.7.2 在正式使用前最后一次改了这些文字（「TapeVault 文件夹密钥」版本 2、「TapeVault 托付：设置 / 报平安」），之前的测试文件夹和托付记录不再能解开；此后不再改动。`test/i18n.test.mjs` 会检查每条 `t('…')` 都有英文且占位符一致。
 
+### GitHub Pages
+
+`github_pages/` 是同一份构建产物的副本，由 `.github/workflows/pages.yml` 原样发布到 GitHub Pages（CI 不重新构建，线上文件与链上 DeWEB 的文件逐字节一致）。发版时：
+
+```bash
+npm run pages          # 构建并把 dist/ 复制到 github_pages/
+```
+
+然后提交 `github_pages/` 并 push，改动推到 main 后自动发布。
+
 `dev-server.mjs` 和 `test/` 只用于本地开发，不在 `dist/` 里。更新网站时不要动容器里的 `_tapevault/` 目录。
 
 ## 参与共建

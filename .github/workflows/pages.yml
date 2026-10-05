@@ -1,0 +1,35 @@
+# 把仓库里的 github_pages/ 原样发布到 GitHub Pages（不在 CI 里重新构建：
+# 线上文件与提交的文件、链上 DeWEB 的文件逐字节一致，可以直接核对 SHA-256）。
+# 更新：npm run pages → 提交 github_pages/ → push。
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ['github_pages/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # 只在主仓库发布；备份仓库没开 Pages
+    if: github.repository == 'trytotapeout/TapeVault'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: github_pages
+      - id: deployment
+        uses: actions/deploy-pages@v5
